@@ -159,25 +159,54 @@ with sync_playwright() as p:
 
 3. **問是否發布**：「要把這份查核報告發布到網路上嗎？我可以幫你產生一個短網址，方便分享。」
 
-### Step 7: 發布報告（使用者同意後）
+### Step 7: 生成 Slides 報告 + 發布（使用者同意後）
+
+你自己用 Tailwind CSS 生成一份多頁 slides 式 HTML 報告。結構：
+
+```html
+<!-- 用 scroll-snap 做成可左右滑的 slides -->
+<div class="snap-x snap-mandatory overflow-x-auto flex">
+  <!-- Slide 1: 原文 -->
+  <section class="snap-center min-w-full">
+    原文全文，用 <mark> 高亮標記實體（人=藍、機構=紫、數字=橙、時間=綠、地點=青）
+  </section>
+  <!-- Slide 2~N: 每則聲明 -->
+  <section class="snap-center min-w-full">
+    聲明 → KG tags → 比對結果 → 來源連結
+  </section>
+  <!-- 最後一頁: 總結 -->
+  <section class="snap-center min-w-full">
+    手法類型 + 整體判定 + 所有來源彙整
+  </section>
+</div>
+```
+
+設計要求：
+- 每頁 100vh 高，深色背景，大字
+- 底部加頁碼指示器（dots）
+- 手機友善（touch scroll）
+- 頂部固定 Collatro logo
+- 最後一頁放短網址 QR code（如果有）
+
+生成後存到 `output/report.html`，然後：
 
 1. 確認 repo 有 `gh-pages` branch，沒有就建立：
 ```bash
 git checkout --orphan gh-pages
 git rm -rf .
-echo "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Collatro Reports</title></head><body><h1>Collatro 查核報告</h1></body></html>" > index.html
+echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Collatro</title></head><body><h1>Collatro 查核報告</h1></body></html>' > index.html
 git add index.html
 git commit -m "init gh-pages"
 git push -u origin gh-pages
 git checkout main
 ```
 
-2. 把 output 裡的 HTML 報告複製到 gh-pages branch 並 push：
+2. 把報告 push 到 gh-pages：
 ```bash
 git checkout gh-pages
-cp ../output/報告檔名.html ./
+cp output/report.html ./report-$(date +%Y%m%d-%H%M).html
 git add .
-git commit -m "add: 查核報告 YYYY-MM-DD"
+git commit -m "add: 查核報告 $(date +%Y-%m-%d)"
 git push
 git checkout main
 ```
@@ -187,7 +216,7 @@ git checkout main
 python3 -c "
 from urllib.request import urlopen
 from urllib.parse import quote
-url = 'https://使用者帳號.github.io/collatro/報告檔名.html'
+url = 'https://使用者帳號.github.io/collatro/report-YYYYMMDD-HHMM.html'
 short = urlopen(f'https://tinyurl.com/api-create.php?url={quote(url)}').read().decode()
 print(f'短網址：{short}')
 "
@@ -195,10 +224,10 @@ print(f'短網址：{short}')
 
 4. 告訴使用者：
 > 報告已發布：
-> - 完整報告：https://xxx.github.io/collatro/報告名.html
-> - 短網址：https://is.gd/xxxxx
+> - 完整報告（可左右滑）：https://xxx.github.io/collatro/report-xxx.html
+> - 短網址：https://tinyurl.com/xxxxx
 >
-> 可以把短網址貼回群組，讓其他人也看到查核結果。
+> 可以把短網址貼回群組分享。
 
 ## 禁止事項
 
