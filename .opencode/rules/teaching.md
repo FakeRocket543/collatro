@@ -14,15 +14,29 @@ alwaysApply: true
 
 > ✅ 基本設定完成。
 >
-> 接下來要下載本地 AI 模型，有兩個選擇：
-> - **3B**（預設，約 3GB，速度快，適合記憶體 8GB 的機器）
-> - **8B**（約 8GB，品質較好，需要 16GB 以上記憶體）
+> 兩個選配項目：
 >
-> 預設是 3B，要改用 8B 嗎？
+> **1. 搜尋引擎**：你有自架 Searxng 嗎？有的話搜尋品質會更好（不限流、繁中優先）。
+> 沒有的話我用 DuckDuckGo，也能用。
+>
+> **2. 本地 AI 模型**（選配）：
+> - **3B**（預設，約 3GB，適合 8GB 記憶體）
+> - **8B**（約 8GB，需 16GB 以上）
+> - **不裝**（由我直接處理，不需要本地模型）
+>
+> 預設是 3B + DuckDuckGo，要改嗎？
 
-如果選 8B，設定環境變數：
-- 在 venv activate 腳本末尾加上 `export COLLATRO_MLX_MODEL=mlx-community/Ministral-3-8B-Instruct-2512-8bit`
-- 3B 是預設值，不需設定
+如果有 Searxng：
+```bash
+echo 'export COLLATRO_SEARXNG_URL=http://localhost:8888' >> .venv/bin/activate
+```
+（替換為使用者的實際 URL 和 port）
+
+如果沒有 Searxng 但想裝：
+```bash
+docker run -d -p 8888:8080 --name searxng searxng/searxng
+echo 'export COLLATRO_SEARXNG_URL=http://localhost:8888' >> .venv/bin/activate
+```
 
 設定完後說：
 
