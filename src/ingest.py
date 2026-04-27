@@ -88,11 +88,16 @@ def ingest(text: str) -> dict:
     seen = set()
     keywords = [k for k in keywords if not (k in seen or seen.add(k))]
 
+    # 詞頻統計（過濾單字和標點）
+    from collections import Counter
+    word_freq = Counter(w for w, p in zip(ws, pos) if len(w) >= 2 and p not in {"COMMACATEGORY", "PERIODCATEGORY", "COLONCATEGORY", "SEMICOLONCATEGORY", "EXCLAMATIONCATEGORY", "QUESTIONCATEGORY", "PARENTHESISCATEGORY", "DASHCATEGORY", "x", "w"})
+
     return {
         "ws": ws,
         "pos": pos,
         "keywords": keywords[:10],
         "entities": hl_entities,
         "entity_queries": hl_queries,
+        "word_freq": dict(word_freq.most_common(20)),
         "backend": _ckip_backend,
     }

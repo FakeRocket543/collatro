@@ -4,89 +4,105 @@
 
 使用者貼了一段要查核的文字。
 
-## 執行步驟（強制，不要跳過或自行替代）
+## 流程（強制依序執行）
 
-收到文字後，依序執行以下 python 腳本。將使用者的文字填入 `TEXT` 變數。
-
-### Step 1: 斷詞 + 實體提取 + 搜尋證據
+### Step 1: 斷詞 + 實體提取 + 詞頻
 
 ```bash
 python3 -c "
 import json, sys
 sys.path.insert(0, '.')
 from src.ingest import ingest
-from src.retrieve import search
-from src.enrich import _wiki_summary
 
 text = '''{{TEXT}}'''
 
-# 斷詞 + 實體
 r = ingest(text)
-entities = r.get('entities', [])
-entity_queries = r.get('entity_queries', [])
-
-print('=== 實體 ===')
-for e in entities:
-    print(json.dumps(e, ensure_ascii=False))
-
-print()
-print('=== 查詢詞 ===')
-print(json.dumps(entity_queries, ensure_ascii=False))
-
-# Wikipedia 查詢（人名/機構）
-print()
-print('=== Wikipedia ===')
-for e in entities:
-    if e['type'] in ('person', 'org') and len(e['text']) >= 2:
-        wiki = _wiki_summary(e['text'])
-        if wiki:
-            print(json.dumps({'name': e['text'], 'extract': wiki['extract'][:200], 'url': wiki['wiki_url']}, ensure_ascii=False))
-
-# 搜尋證據
-print()
-print('=== 搜尋結果 ===')
-for q in entity_queries[:3]:
-    results = search(q)
-    for ev in results[:2]:
-        print(json.dumps({'query': q, 'title': ev['title'], 'url': ev['url'], 'snippet': ev['snippet'][:150]}, ensure_ascii=False))
+print(json.dumps({
+    'entities': r.get('entities', []),
+    'entity_queries': r.get('entity_queries', []),
+    'keywords': r.get('keywords', []),
+    'word_freq': r.get('word_freq', {}),
+}, ensure_ascii=False, indent=2))
 "
 ```
 
-### Step 2: 報告
+### Step 2: 你自己拆解聲明
 
-根據 Step 1 的輸出，用正常中文報告。每則聲明必須包含：
+根據原文和 Step 1 的實體，列出所有可驗證的事實聲明。每則聲明標出：
+- 原文段落（引用）
+- 涉及的實體（人/機構/地/數字/時間）
 
-1. **原文段落**：引用原文中對應的句子
-2. **比對結果**：聲明說什麼 vs 證據說什麼
-3. **參考資料**：附上搜尋結果的標題和 URL、Wikipedia 連結
-4. **判定**：吻合 / 不一致 / 資訊不足
+### Step 3: 搜尋證據
 
-範例格式：
-
-> **聲明：**「王永慶也是因為喝水嗆到，而引發肺炎致死」
->
-> **比對：** 多家媒體報導指出王永慶係因心肺衰竭辭世，並非喝水嗆到。
->
-> **來源：**
-> - [王永慶逝世 - 維基百科](https://zh.wikipedia.org/wiki/...)
-> - [台灣事實查核中心報告](https://tfc-taiwan.org.tw/...)
->
-> **判定：** ✗ 不一致（死因與公開紀錄矛盾）
-
-最後問使用者怎麼判斷。
-
-### Step 3: 完整查核（如果本地 LLM 可用）
+對每則聲明的關鍵實體，執行搜尋：
 
 ```bash
-python3 -m src.run "{{TEXT}}" --theme sky
+python3 -c "
+import json, sys
+sys.path.insert(0, '.')
+from src.retrieve import search
+from src.enrich import _wiki_summary
+
+queries = {{QUERIES}}  # 從 Step 2 決定的查詢詞列表
+
+results = {}
+for q in queries:
+    results[q] = search(q)
+
+# Wikipedia
+wiki_results = {}
+for name in {{PERSON_ORG_LIST}}:  # Step 1 中 type=person 或 org 的實體
+    w = _wiki_summary(name)
+    if w:
+        wiki_results[name] = {'extract': w['extract'][:300], 'url': w['wiki_url']}
+
+print('=== 搜尋結果 ===')
+print(json.dumps(results, ensure_ascii=False, indent=2))
+print()
+print('=== Wikipedia ===')
+print(json.dumps(wiki_results, ensure_ascii=False, indent=2))
+"
 ```
 
-如果成功，用 `open` 打開 output/ 裡的圖卡。
-如果 LLM 不可用，跳過此步，Step 2 的報告已足夠。
+### Step 4: 你自己比對差異
+
+根據搜尋結果，比對每則聲明與證據的差異。重點看：
+- NER：人名/機構/地點是否正確
+- 數字：金額/人數/比例是否吻合
+- 時間線：日期/順序是否正確
+
+### Step 5: 報告
+
+每則聲明的報告格式：
+
+> **聲明：**「原文段落引用」
+>
+> **比對：** 聲明說 X，證據說 Y
+>
+> **來源：**
+> - [標題](URL)
+> - [Wikipedia 頁面](URL)
+>
+> **判定：** ✓ 吻合 / ✗ 不一致 / ？ 資訊不足
+
+### Step 6: 收尾
+
+報告完所有聲明後：
+
+1. **總結手法類型**：這段內容用了什麼手法？
+   - 數字灌水（誇大金額/人數）
+   - 時間嫁接（舊聞配新日期）
+   - 張冠李戴（移花接木）
+   - 名人背書（借用權威人物增加可信度）
+   - 混合真假（用真實資訊包裝錯誤細節）
+   - 情緒操控（用恐懼/憤怒驅動轉傳）
+
+2. **問使用者**：「根據這些比對，你怎麼判斷這段內容？下次看到類似的轉傳，你會注意什麼？」
 
 ## 禁止事項
 
 - 不要修改 src/ 下的任何檔案
 - 不要安裝額外套件
-- 不要用自己的知識替代搜尋結果
-- 不要下真假結論
+- 不要跳過搜尋步驟直接用自己的知識下結論
+- 不要下真假結論——帶使用者看證據
+- 全程使用繁體中文
