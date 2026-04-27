@@ -21,7 +21,8 @@ def run(text: str, theme: str = "slate") -> list:
     ingest_result = ingest(text)
     print(f"    → 後端：{ingest_result['backend']}，關鍵詞：{' '.join(ingest_result['keywords'][:5])}")
     if ingest_result["entities"]:
-        print(f"    → 實體：{', '.join(ingest_result['entities'][:5])}")
+        ent_names = [e["text"] if isinstance(e, dict) else e for e in ingest_result["entities"][:5]]
+        print(f"    → 實體：{', '.join(ent_names)}")
 
     print("2/7 拆解聲明…")
     claims = decompose(text)
@@ -29,7 +30,7 @@ def run(text: str, theme: str = "slate") -> list:
 
     print("3/7 查詢實體背景…")
     # Use NER entities + claims' who field
-    entities = ingest_result["entities"][:]
+    entities = [e["text"] if isinstance(e, dict) else e for e in ingest_result["entities"]]
     for c in claims:
         who = c.get("who", "")
         if who and who not in entities and len(who) >= 2:
