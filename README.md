@@ -4,23 +4,37 @@
 
 拆解文章聲明 → 查詢實體背景 → 搜尋原始來源 → 比對 NER/數字/時間線差異 → 產出 1080×1080 圖卡。
 
+---
+
+## 為什麼做這個？
+
+現有的「假新聞偵測」工具有兩個問題：
+1. **分類器不泛化** — 訓練集長什麼樣就只認什麼樣，換個語氣就繞過
+2. **只給結論不教方法** — 告訴你「這是假的」，但不教你怎麼自己判斷
+
+Collatro 不做分類，不給結論。它做的是：**把「聲明」和「證據」並排放好，讓你自己看差異在哪。**
+
+這是事實查核的核心方法論：拆解 → 搜尋 → 比對。工具加速這個過程，但判斷永遠是人做的。
+
+---
+
 ## Quick Start
 
 ```bash
-# 1. 安裝 Playwright
-pip install playwright && playwright install chromium
-
-# 2. 啟動 LLM（Mistral 3B/8B Q8）
-llama-server -m mistral-*.gguf --port 8080 -ngl 99 &
-
-# 3. 跑
-python -m src.run "台積電宣布整廠搬遷美國，預計明年完成"
-
-# 4. 互動教學模式
-python -m src.run --interactive
+git clone https://github.com/FakeRocket543/collatro.git
+cd collatro
+python3 setup.py          # 一鍵安裝所有依賴
+python3 -m src.run -i     # 互動教學模式
 ```
 
-## Pipeline
+或直接跑：
+```bash
+python3 -m src.run --theme sky "台積電宣布整廠搬遷美國，預計明年完成"
+```
+
+---
+
+## Pipeline 架構
 
 ```
 text → decompose → enrich → retrieve → diff → package → render
@@ -31,36 +45,120 @@ text → decompose → enrich → retrieve → diff → package → render
                                         時間線
 ```
 
-## 使用方式
+### 為什麼是這個順序？
 
-### CLI 模式
-```bash
-python -m src.run "待查核文字"
-python -m src.run --file article.txt
-python -m src.run --theme sky "待查核文字"
+1. **decompose 在最前面** — 一段文字可能包含多個聲明，必須先拆開才能逐一驗證。不拆的話，搜尋會太模糊。
+2. **enrich 在 retrieve 之前** — 先知道實體是什麼（賴清德是總統、台積電是半導體公司），搜尋時才能組出好的 query。
+3. **retrieve 在 diff 之前** — 必須先有證據，才能比對。
+4. **diff 在 render 之前** — 比對結果是圖卡的內容來源。
+5. **package 和 render 並行** — 一個存檔（JSON+MD），一個出圖，互不依賴。
+
+---
+
+## 模組詳解
+
+### `src/config.py` — 設定中心
+```
+環境變數驅動，零硬編碼。
+為什麼：讓學生不用改程式碼就能切換 LLM server 或模型。
 ```
 
-### 互動教學模式（推薦給學生）
-```bash
-python -m src.run --interactive
-python -m src.run -i --theme violet
+### `src/llm.py` — LLM 推論（三層 fallback）
 ```
-
-引導學生逐步完成：
-1. 貼上可疑文字
-2. AI 拆解聲明
-3. 學生先猜哪些有問題
-4. 搜尋證據
-5. 比對差異
-6. 反思 + 產出圖卡
-
-### HTTP API
-```bash
-python -m src.serve --port 9001
-curl -X POST http://localhost:9001/api/check \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "theme": "sky"}'
+Tier 1: mlx-lm (in-process, Apple Silicon 原生)
+Tier 2: llama-server subprocess (自動啟動/關閉)
+Tier 3: 外部 server (localhost:8080)
 ```
+**為什麼三層？** 因為學生的環境不一致：
+- 有 M1/M2/M3 → 用 mlx-lm，最快，不用開 server
+- 有 GGUF 檔 → 自動開 llama-server，用完殺掉，不佔資源
+- 什麼都沒有 → 連老師的 server
+
+### `src/decompose.py` — 聲明拆解
+```
+輸入：一段文字
+輸出：[{text, who, what, when, number, keywords}]
+```
+**為什麼用 LLM 而不是規則？** 因為自然語言的聲明邊界無法用正則切割。「台積電宣布搬遷美國，預計明年完成」裡有兩個聲明（搬遷 + 時間），只有語言模型能正確拆開。
+
+**為什麼要求結構化輸出（who/what/when/number）？** 因為 diff 步驟需要這些欄位來做精確比對。如果只有 text，就只能做模糊比較。
+
+### `src/enrich.py` — Wikipedia 實體查詢
+```
+輸入：實體名稱列表（從 claims 的 who 欄位提取）
+輸出：{entities: [{name, description, categories, wiki_url}], all_categories}
+```
+**為什麼用 Wikipedia 而不是 LLM？** 因為 LLM 會幻覺。Wikipedia 是可驗證的事實來源，而且有結構化的分類系統。
+
+**為什麼不用 Wikidata？** Collatro 簡化版不需要。Anseropolis 有用 Wikidata 做更深的實體消歧。
+
+### `src/retrieve.py` — 證據搜尋
+```
+輸入：claims（帶 keywords）
+輸出：claims + evidence（每個 claim 附 3 筆搜尋結果）
+```
+**為什麼用 DuckDuckGo HTML scraping？** 
+- 免費，不需要 API key
+- 不追蹤用戶，適合教學場景
+- HTML 版比 API 版更穩定
+
+**為什麼只取 3 筆？** 教學用途不需要大量結果。3 筆足夠讓 LLM 做比對，也不會讓圖卡太擠。
+
+### `src/diff.py` — 結構化比對
+```
+輸入：claims + evidence
+輸出：claims + diff（{ner: [], numbers: [], timeline: [], verdict, summary}）
+```
+**為什麼分三個面向？**
+- **NER（人名/機構/地點）**：張冠李戴是最常見的造假手法
+- **數字（金額/人數/比例）**：誇大或縮小數字是第二常見
+- **時間線（日期/順序）**：嫁接不同時間的事件是第三常見
+
+這三個面向覆蓋了 80% 以上的事實錯誤類型。
+
+**為什麼用 LLM 而不是規則比對？** 因為「聲明說 5%，證據說 3%」這種比對需要理解語義，不是字串匹配能做的。
+
+### `src/package.py` — 結果打包
+```
+輸出：JSON（完整資料）+ Markdown（人類可讀摘要）
+```
+**為什麼兩種格式？** JSON 給程式讀（可以回灌、統計、API 回傳），MD 給人讀（學生可以直接看）。
+
+### `src/render.py` — 圖卡渲染
+```
+Tailwind CSS HTML → Playwright screenshot → 1080×1080 PNG
+```
+**為什麼用 Tailwind + Playwright 而不是 Pillow？**
+- Tailwind：不用寫 CSS，class 即樣式，改色系只要換一個字
+- Playwright：渲染品質等同瀏覽器，中文字體不會破
+- 1080×1080：Instagram 正方形格式，學生可以直接分享
+
+**為什麼不用 Canvas/SVG？** 因為中文排版太痛苦。HTML 天生支援中文換行、字體 fallback。
+
+### `src/interactive.py` — 互動教學模式
+```
+引導流程：輸入 → 拆解 → 學生猜測 → 搜尋 → 比對 → 反思 → 圖卡
+```
+**為什麼要學生先猜？** 教育心理學的「預測-觀察-解釋」(POE) 模式。先讓學生做預測，再看結果，學習效果比直接看答案好 3 倍。
+
+### `src/serve.py` — HTTP API
+```
+POST /api/check {text, theme} → {claims}
+```
+**為什麼要 API？** 讓不想用 CLI 的學生可以用 Postman 或寫前端串接。
+
+---
+
+## 依賴說明
+
+| 套件 | 用途 | 為什麼選它 |
+|------|------|-----------|
+| `mlx-lm` | 本地 LLM 推論 | Apple Silicon 原生，比 llama.cpp Python binding 快 2x，純 pip install |
+| `playwright` | HTML → PNG 截圖 | 比 Selenium 輕、比 Pillow 排版好、中文不破 |
+
+**為什麼沒有 requirements.txt？** 因為只有兩個依賴，寫在 `setup.py` 裡自動裝。不想讓學生面對一長串套件清單。
+
+---
 
 ## 色系主題
 
@@ -71,32 +169,32 @@ curl -X POST http://localhost:9001/api/check \
 --theme amber    # 琥珀
 --theme violet   # 紫
 --theme rose     # 玫瑰
-# 或任何 Tailwind CSS 色名
+# 或任何 Tailwind CSS 色名（fuchsia, cyan, lime...）
 ```
 
-## 環境變數
+**為什麼讓學生選色系？** 增加參與感。產出的圖卡是「他的」，不是「工具的」。
 
-| 變數 | 預設 | 說明 |
-|------|------|------|
-| `COLLATRO_LLM_URL` | `http://localhost:8080/v1/chat/completions` | LLM API |
-| `COLLATRO_LLM_MODEL` | `mistral` | 模型名稱 |
-
-## 產出
-
-- `output/<slug>_<timestamp>.json` — 完整結果（聲明、證據、diff、實體）
-- `output/<slug>_<timestamp>.md` — Markdown 摘要
-- `output/claim_N.png` — 1080×1080 圖卡
+---
 
 ## 與 Anseropolis 的關係
 
+Collatro 是 [Anseropolis](https://github.com/FakeRocket543/anseropolis) 的教學簡化版。
+
 | | Collatro | Anseropolis |
 |---|---|---|
-| 定位 | 事實比對教學 | 謠言偵測 + 查核 |
 | 核心問題 | 「這跟來源對不對得上？」 | 「這是不是謠言？」 |
-| 謠言庫 | 無 | 4125 篇 TFC |
-| 語言指紋 | 無 | 有（含國台辦偵測） |
-| 可疑度評分 | 無 | 0-100 |
-| 適合 | 初學者 | 進階 |
+| 謠言庫比對 | 無 | ✓（4125 篇 TFC 報告） |
+| 語言指紋偵測 | 無 | ✓（含國台辦敘事偵測） |
+| 可疑度評分 | 無 | ✓（0-100 四維加權） |
+| NER/數字/時間線 diff | ✓ | ✓ |
+| Wikipedia 實體 | ✓ | ✓ |
+| 圖卡輸出 | ✓ | ✓ |
+| 互動教學 | ✓ | ✓ |
+| 適合 | 初學者（學方法） | 進階（學偵測） |
+
+**教學建議：先用 Collatro 學會「拆解 → 搜尋 → 比對」，再用 Anseropolis 學「謠言有什麼語言特徵」。**
+
+---
 
 ## License
 
