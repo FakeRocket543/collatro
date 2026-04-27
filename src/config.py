@@ -16,3 +16,6 @@ LLM_MODEL = os.environ.get("COLLATRO_LLM_MODEL", "mistral")
 
 # Tier 2: llama-server subprocess (path to .gguf file)
 # COLLATRO_GGUF=/path/to/Ministral-3-3B-Instruct-2512-Q8_0.gguf
+
+# Search engine (Searxng preferred, DuckDuckGo fallback)
+# COLLATRO_SEARXNG_URL=http://localhost:8888
