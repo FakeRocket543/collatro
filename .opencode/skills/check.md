@@ -188,7 +188,7 @@ python3 -c "
 from urllib.request import urlopen
 from urllib.parse import quote
 url = 'https://使用者帳號.github.io/collatro/報告檔名.html'
-short = urlopen(f'https://is.gd/create.php?format=simple&url={quote(url)}').read().decode()
+short = urlopen(f'https://tinyurl.com/api-create.php?url={quote(url)}').read().decode()
 print(f'短網址：{short}')
 "
 ```
