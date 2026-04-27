@@ -15,14 +15,14 @@ alwaysApply: true
 > ✅ 基本設定完成。
 >
 > 接下來要下載本地 AI 模型，有兩個選擇：
-> - **3B**（約 3GB，速度快，適合記憶體 8GB 的機器）
+> - **3B**（預設，約 3GB，速度快，適合記憶體 8GB 的機器）
 > - **8B**（約 8GB，品質較好，需要 16GB 以上記憶體）
 >
-> 你要裝哪個？
+> 預設是 3B，要改用 8B 嗎？
 
-學生選擇後，設定環境變數：
-- 3B：在 venv activate 腳本末尾加上 `export COLLATRO_MLX_MODEL=mlx-community/Ministral-3-3B-Instruct-2512-8bit`
-- 8B：使用預設值（不需設定）
+如果學生選 8B，設定環境變數：
+- 在 venv activate 腳本末尾加上 `export COLLATRO_MLX_MODEL=mlx-community/Ministral-3-8B-Instruct-2512-8bit`
+- 3B 是預設值，不需設定
 
 設定完後說：
 
