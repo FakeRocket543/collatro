@@ -24,7 +24,7 @@ _llama_proc = None
 _backend = None
 _mlx_available = None
 
-MLX_MODEL_ID = os.environ.get("COLLATRO_MLX_MODEL", "mlx-community/Ministral-8B-Instruct-2412-4bit")
+MLX_MODEL_ID = os.environ.get("COLLATRO_MLX_MODEL", "mlx-community/Ministral-3-8B-Instruct-2512-8bit")
 LLAMA_GGUF = os.environ.get("COLLATRO_GGUF", "")
 
 
