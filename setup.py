@@ -41,8 +41,7 @@ def main():
         load("mlx-community/Ministral-8B-Instruct-2412-4bit")
         print("   ✅ 模型就緒")
     except ImportError:
-        print("   ⚠️  mlx-lm 未安裝（可能不是 Apple Silicon），跳過")
-        print("   → 請設定 COLLATRO_LLM_URL 連接老師的 server")
+        print("   → mlx-lm 未安裝（可能不是 Apple Silicon），LLM 步驟可在 Claude Code 中由 AI 代勞")
     except Exception as e:
         print(f"   ⚠️  模型下載失敗：{e}")
         print("   → 重跑此腳本或手動執行：")

@@ -173,9 +173,9 @@ text → ingest → decompose → enrich → retrieve → diff → package → r
 ```
 Tier 1: mlx-lm (in-process, Apple Silicon 原生，最快)
 Tier 2: llama-server subprocess (自動啟動，用完殺掉)
-Tier 3: 外部 server (連老師的機器)
+Tier 3: 失敗時報錯，由 Claude Code AI 代勞
 ```
-**為什麼三層？** 學生環境不一致。有 Apple Silicon 的用 Tier 1，沒有的連老師 server (Tier 3)。
+**為什麼三層？** 優先本地推論。如果都不行，學生在 Claude Code 裡操作時，AI 會直接幫忙完成 LLM 步驟。
 
 ### `src/decompose.py` — 聲明拆解
 ```

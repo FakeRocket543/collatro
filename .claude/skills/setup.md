@@ -40,15 +40,11 @@ python3 -m src.run "測試：台積電市值超過10兆美元"
 ## 常見問題
 
 - **pip 找不到 mlx-lm**：確認用的是 `pip3` 或 `python3 -m pip install mlx-lm`
-- **mlx-lm 安裝失敗**：需要 macOS 13.5+ 和 Apple Silicon (M1/M2/M3)。Intel Mac 不支援 mlx，改用老師的 server
-- **playwright install 卡住**：可能需要 `sudo playwright install-deps` (Linux) 或等它下載完
+- **mlx-lm 安裝失敗**：需要 macOS 13.5+ 和 Apple Silicon (M1/M2/M3)
+- **playwright install 卡住**：等它下載完，或重跑
 - **模型下載中斷**：重跑第 4 步，會從斷點續傳
 - **記憶體不足 (8GB Mac)**：改用小模型 `COLLATRO_MLX_MODEL=mlx-community/Ministral-3B-Instruct-2512-4bit`
 
-## 如果學生沒有 Apple Silicon
+## 如果 mlx-lm 無法使用
 
-告訴學生設定環境變數連老師的 server：
-```bash
-export COLLATRO_LLM_URL=http://老師IP:8080/v1/chat/completions
-```
-這樣只需要 `pip install playwright && playwright install chromium`，不需要 mlx-lm。
+不需要外部 server。在 Claude Code 中操作時，AI 會直接代勞 LLM 步驟（decompose、diff），學生仍然可以完成完整流程。
