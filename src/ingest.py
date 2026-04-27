@@ -1,0 +1,97 @@
+"""collatro.ingest — 斷詞 + NER（三層 fallback：MLX CKIP → ckip-transformers → jieba）"""
+
+import os
+import importlib.util
+from pathlib import Path
+
+_ckip_pipeline = None
+_ckip_backend = None  # "mlx" | "transformers" | "jieba" | "none"
+
+CKIP_MODEL_DIR = os.environ.get("COLLATRO_CKIP_DIR") or None
+CKIP_BATCH_PY = os.environ.get("COLLATRO_CKIP_BATCH_PY") or None
+
+
+def _load_ckip():
+    global _ckip_pipeline, _ckip_backend
+    if _ckip_backend is not None:
+        return
+
+    # Tier 1: MLX CKIP
+    if CKIP_MODEL_DIR and CKIP_BATCH_PY:
+        try:
+            ckip_path = Path(CKIP_BATCH_PY)
+            if ckip_path.exists():
+                spec = importlib.util.spec_from_file_location("ckip_batch", ckip_path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                _ckip_pipeline = mod.CKIPBatchProcessor(CKIP_MODEL_DIR)
+                _ckip_backend = "mlx"
+                return
+        except Exception:
+            pass
+
+    # Tier 2: ckip-transformers
+    try:
+        from ckip_transformers.nlp import CkipWordSegmenter, CkipPosTagger
+        _ckip_pipeline = {
+            "ws": CkipWordSegmenter(model="bert-base"),
+            "pos": CkipPosTagger(model="bert-base"),
+        }
+        _ckip_backend = "transformers"
+        return
+    except (ImportError, Exception):
+        pass
+
+    # Tier 3: jieba
+    try:
+        import jieba
+        import jieba.posseg
+        _ckip_pipeline = jieba
+        _ckip_backend = "jieba"
+        return
+    except ImportError:
+        pass
+
+    _ckip_backend = "none"
+
+
+def ingest(text: str) -> dict:
+    """Segment text and extract keywords + entities."""
+    _load_ckip()
+
+    if _ckip_backend == "mlx":
+        result = _ckip_pipeline.process(text)
+        ws = result.get("ws", [])
+        pos = result.get("pos", [])
+    elif _ckip_backend == "transformers":
+        ws_result = _ckip_pipeline["ws"]([text])
+        pos_result = _ckip_pipeline["pos"]([text])
+        ws = ws_result[0]
+        pos = pos_result[0]
+    elif _ckip_backend == "jieba":
+        import jieba.posseg
+        pairs = list(jieba.posseg.cut(text))
+        ws = [w for w, _ in pairs]
+        pos = [p for _, p in pairs]
+    else:
+        ws = list(text)
+        pos = ["X"] * len(ws)
+
+    # Extract entities (person=nr/Nb, org=nt/Nc, place=ns/Ncd)
+    entity_tags = {"nr", "Nb", "nt", "Nc", "ns", "Ncd", "NR", "NT", "NS"}
+    entities = [w for w, p in zip(ws, pos) if p in entity_tags and len(w) >= 2]
+
+    # Keywords: nouns + verbs, length >= 2
+    keyword_tags = {"n", "v", "Na", "Nb", "Nc", "Ncd", "VA", "VB", "VC", "VD", "nr", "nt", "ns", "vn"}
+    keywords = [w for w, p in zip(ws, pos) if p in keyword_tags and len(w) >= 2]
+    # Deduplicate preserving order
+    seen = set()
+    keywords = [k for k in keywords if not (k in seen or seen.add(k))]
+
+    return {
+        "ws": ws,
+        "pos": pos,
+        "keywords": keywords[:10],
+        "entities": list(dict.fromkeys(entities)),  # dedupe
+        "backend": _ckip_backend,
+    }

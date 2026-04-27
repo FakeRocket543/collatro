@@ -3,7 +3,7 @@
 import sys
 
 from src.decompose import decompose
-from src.enrich import enrich, extract_entities
+from src.enrich import enrich
 from src.retrieve import retrieve
 from src.diff import diff
 from src.package import package, save
@@ -48,7 +48,17 @@ def interactive_mode(theme: str = "slate"):
 
     print(f"\n📝 收到！共 {len(text)} 字。")
 
-    # Step 2: Decompose
+    # Step 2: Ingest (segmentation + NER)
+    _pause("先做斷詞和實體辨識…")
+    print("\n⏳ 斷詞 + NER…")
+    from src.ingest import ingest
+    ingest_result = ingest(text)
+    print(f"   後端：{ingest_result['backend']}")
+    if ingest_result["entities"]:
+        print(f"   偵測到的實體：{', '.join(ingest_result['entities'][:8])}")
+    print(f"   關鍵詞：{' '.join(ingest_result['keywords'][:8])}")
+
+    # Step 3: Decompose
     _pause("接下來 AI 會拆解這段文字裡的事實聲明…")
     print("\n⏳ 拆解中…")
     claims = decompose(text)
@@ -62,7 +72,7 @@ def interactive_mode(theme: str = "slate"):
         if c.get("when"):
             print(f"     📅 時間：{c['when']}")
 
-    # Step 3: Student guesses
+    # Step 4: Student guesses
     print("\n" + "─" * 40)
     print("🤔 在看到證據之前，你覺得哪些聲明可能有問題？")
     print("   （輸入編號，用逗號分隔，例如：1,3）")
@@ -70,10 +80,15 @@ def interactive_mode(theme: str = "slate"):
     if guess != "跳過":
         print(f"   📌 記住你的猜測：{guess}")
 
-    # Step 4: Enrich + Retrieve
+    # Step 5: Enrich + Retrieve
     _pause("現在來搜尋證據…")
     print("\n⏳ 查詢實體背景…")
-    entities = extract_entities(claims)
+    entities = ingest_result["entities"][:]
+    for c in claims:
+        who = c.get("who", "")
+        if who and who not in entities and len(who) >= 2:
+            entities.append(who)
+    entities = entities[:8]
     enrich_result = None
     if entities:
         enrich_result = enrich(entities)

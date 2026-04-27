@@ -1,11 +1,12 @@
-"""collatro.run — CLI: decompose → enrich → retrieve → diff → package → render"""
+"""collatro.run — CLI: ingest → decompose → enrich → retrieve → diff → package → render"""
 
 import argparse
 import sys
 import time
 
+from src.ingest import ingest
 from src.decompose import decompose
-from src.enrich import enrich, extract_entities
+from src.enrich import enrich
 from src.retrieve import retrieve
 from src.diff import diff
 from src.package import package, save
@@ -16,12 +17,24 @@ def run(text: str, theme: str = "slate") -> list:
     print(f"📝 輸入（{len(text)} 字）| 主題：{theme}")
     t0 = time.time()
 
-    print("1/6 拆解聲明…")
+    print("1/7 斷詞 + NER…")
+    ingest_result = ingest(text)
+    print(f"    → 後端：{ingest_result['backend']}，關鍵詞：{' '.join(ingest_result['keywords'][:5])}")
+    if ingest_result["entities"]:
+        print(f"    → 實體：{', '.join(ingest_result['entities'][:5])}")
+
+    print("2/7 拆解聲明…")
     claims = decompose(text)
     print(f"    → {len(claims)} 則聲明")
 
-    print("2/6 查詢實體背景…")
-    entities = extract_entities(claims)
+    print("3/7 查詢實體背景…")
+    # Use NER entities + claims' who field
+    entities = ingest_result["entities"][:]
+    for c in claims:
+        who = c.get("who", "")
+        if who and who not in entities and len(who) >= 2:
+            entities.append(who)
+    entities = entities[:8]
     enrich_result = None
     if entities:
         enrich_result = enrich(entities)
@@ -30,23 +43,24 @@ def run(text: str, theme: str = "slate") -> list:
     else:
         print("    → 無實體")
 
-    print("3/6 搜尋證據…")
+    print("4/7 搜尋證據…")
     claims = retrieve(claims)
     for c in claims:
         print(f"    → [{len(c.get('evidence',[]))} 筆] {c['text'][:40]}")
 
-    print("4/6 比對差異…")
+    print("5/7 比對差異…")
     claims = diff(claims)
     for c in claims:
         v = c.get("diff", {}).get("verdict", "?")
         print(f"    → [{v}] {c['text'][:40]}")
 
-    print("5/6 儲存結果…")
+    print("6/7 儲存結果…")
     pkg = package(text, claims, enrich_result)
+    pkg["ingest"] = {"keywords": ingest_result["keywords"], "entities": ingest_result["entities"]}
     md_path = save(pkg)
     print(f"    → {md_path}")
 
-    print("6/6 產生圖片…")
+    print("7/7 產生圖片…")
     paths = render(claims, theme=theme)
     for p in paths:
         print(f"    → {p}")
