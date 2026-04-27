@@ -50,16 +50,6 @@ pip install ckip-transformers
 pip install jieba
 ```
 
-### 方法三：沒有 Apple Silicon（Intel Mac / Windows）
-
-不裝 mlx-lm，改連老師的 LLM server：
-
-```bash
-pip install playwright jieba
-playwright install chromium
-export COLLATRO_LLM_URL=http://老師IP:8080/v1/chat/completions
-```
-
 ### 系統需求
 
 | 項目 | 最低 | 建議 |
