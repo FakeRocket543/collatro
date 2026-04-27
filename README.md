@@ -6,6 +6,18 @@
 
 ---
 
+## 🎓 學生快速開始
+
+```bash
+git clone https://github.com/FakeRocket543/collatro.git
+cd collatro
+python3 setup.py
+```
+
+安裝完成後，在 collatro 目錄裡打開 OpenCode（或 Kiro CLI），AI 助手會自動引導你做事實查核練習。
+
+---
+
 ## 為什麼做這個？
 
 現有的「假新聞偵測」工具有兩個問題：
