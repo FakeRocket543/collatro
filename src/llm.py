@@ -1,11 +1,12 @@
-"""collatro.llm — LLM inference with three-tier fallback.
+"""collatro.llm — LLM inference with three-tier fallback + auto-unload.
 
-Tier 1: mlx-lm (in-process, Apple Silicon native)
+Tier 1: mlx-lm (in-process, load on demand, unload after)
 Tier 2: llama-server subprocess (auto start/kill)
 Tier 3: external server (localhost:8080)
 """
 
 import atexit
+import gc
 import json
 import os
 import shutil
@@ -20,26 +21,39 @@ from src.config import LLM_URL, LLM_MODEL
 _mlx_model = None
 _mlx_tokenizer = None
 _llama_proc = None
-_backend = None  # "mlx" | "subprocess" | "external" | None
+_backend = None
+_mlx_available = None
 
 MLX_MODEL_ID = os.environ.get("COLLATRO_MLX_MODEL", "mlx-community/Ministral-8B-Instruct-2412-4bit")
-LLAMA_GGUF = os.environ.get("COLLATRO_GGUF", "")  # path to .gguf file
+LLAMA_GGUF = os.environ.get("COLLATRO_GGUF", "")
 
 
-def _try_mlx():
-    """Try loading mlx-lm model."""
-    global _mlx_model, _mlx_tokenizer, _backend
+def _load_mlx():
+    global _mlx_model, _mlx_tokenizer
+    from mlx_lm import load
+    _mlx_model, _mlx_tokenizer = load(MLX_MODEL_ID)
+
+
+def _unload_mlx():
+    global _mlx_model, _mlx_tokenizer
+    _mlx_model = None
+    _mlx_tokenizer = None
+    gc.collect()
+
+
+def _try_mlx_available():
+    global _mlx_available
+    if _mlx_available is not None:
+        return _mlx_available
     try:
-        from mlx_lm import load
-        _mlx_model, _mlx_tokenizer = load(MLX_MODEL_ID)
-        _backend = "mlx"
-        return True
-    except (ImportError, Exception):
-        return False
+        import mlx_lm  # noqa: F401
+        _mlx_available = True
+    except ImportError:
+        _mlx_available = False
+    return _mlx_available
 
 
 def _try_subprocess():
-    """Try starting llama-server as subprocess."""
     global _llama_proc, _backend
     llama_bin = shutil.which("llama-server")
     if not llama_bin or not LLAMA_GGUF:
@@ -50,7 +64,6 @@ def _try_subprocess():
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         atexit.register(_kill_llama)
-        # Wait for server to be ready
         for _ in range(30):
             time.sleep(0.5)
             try:
@@ -66,7 +79,6 @@ def _try_subprocess():
 
 
 def _try_external():
-    """Check if external server is already running."""
     global _backend
     try:
         urlopen(LLM_URL.replace("/chat/completions", "/models"), timeout=3)
@@ -88,7 +100,8 @@ def _ensure_backend():
     global _backend
     if _backend:
         return
-    if _try_mlx():
+    if _try_mlx_available():
+        _backend = "mlx"
         return
     if _try_external():
         return
@@ -101,6 +114,7 @@ def _ensure_backend():
 
 
 def chat(messages: list, max_tokens: int = 1024) -> str:
+    """Call LLM. MLX model loaded on demand, unloaded after to free RAM."""
     _ensure_backend()
 
     if _backend == "mlx":
@@ -110,10 +124,15 @@ def chat(messages: list, max_tokens: int = 1024) -> str:
 
 
 def _chat_mlx(messages: list, max_tokens: int) -> str:
+    global _mlx_model, _mlx_tokenizer
+    if _mlx_model is None:
+        _load_mlx()
     from mlx_lm import generate
     from mlx_lm.utils import apply_chat_template
     prompt = apply_chat_template(_mlx_tokenizer, messages)
-    return generate(_mlx_model, _mlx_tokenizer, prompt=prompt, max_tokens=max_tokens, verbose=False)
+    result = generate(_mlx_model, _mlx_tokenizer, prompt=prompt, max_tokens=max_tokens, verbose=False)
+    _unload_mlx()
+    return result
 
 
 def _chat_http(messages: list, max_tokens: int) -> str:
