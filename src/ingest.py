@@ -77,14 +77,14 @@ def ingest(text: str) -> dict:
         ws = list(text)
         pos = ["X"] * len(ws)
 
-    # Extract entities (person=nr/Nb, org=nt/Nc, place=ns/Ncd)
-    entity_tags = {"nr", "Nb", "nt", "Nc", "ns", "Ncd", "NR", "NT", "NS"}
-    entities = [w for w, p in zip(ws, pos) if p in entity_tags and len(w) >= 2]
+    # 重點實體提示器（CEUR-WS 2025 Claim Rewriting 方法）
+    from src.highlight import extract_entities, entity_queries
+    hl_entities = extract_entities(ws, pos)
+    hl_queries = entity_queries(hl_entities)
 
     # Keywords: nouns + verbs, length >= 2
     keyword_tags = {"n", "v", "Na", "Nb", "Nc", "Ncd", "VA", "VB", "VC", "VD", "nr", "nt", "ns", "vn"}
     keywords = [w for w, p in zip(ws, pos) if p in keyword_tags and len(w) >= 2]
-    # Deduplicate preserving order
     seen = set()
     keywords = [k for k in keywords if not (k in seen or seen.add(k))]
 
@@ -92,6 +92,7 @@ def ingest(text: str) -> dict:
         "ws": ws,
         "pos": pos,
         "keywords": keywords[:10],
-        "entities": list(dict.fromkeys(entities)),  # dedupe
+        "entities": hl_entities,
+        "entity_queries": hl_queries,
         "backend": _ckip_backend,
     }
