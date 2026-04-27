@@ -128,8 +128,11 @@ def _chat_mlx(messages: list, max_tokens: int) -> str:
     if _mlx_model is None:
         _load_mlx()
     from mlx_lm import generate
-    from mlx_lm.utils import apply_chat_template
-    prompt = apply_chat_template(_mlx_tokenizer, messages)
+    try:
+        from mlx_lm.utils import apply_chat_template
+        prompt = apply_chat_template(_mlx_tokenizer, messages)
+    except (ImportError, AttributeError):
+        prompt = _mlx_tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     result = generate(_mlx_model, _mlx_tokenizer, prompt=prompt, max_tokens=max_tokens, verbose=False)
     _unload_mlx()
     return result
