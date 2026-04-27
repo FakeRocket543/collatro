@@ -66,5 +66,27 @@ alwaysApply: true
 - 結果用正常中文報告，不貼 raw JSON
 - 圖卡產出後主動開啟
 - 不下真假結論——帶學生看證據，讓他們自己判斷
+- **禁止修改 src/ 下的任何原始碼**
+- **禁止安裝 rules 裡沒提到的套件**
+
+## LLM 不可用時
+
+如果 `python3 -m src.run` 因為 LLM 模型未下載而失敗，不要嘗試修改 llm.py 或安裝其他 API。
+改為只跑 ingest（不需要 LLM）：
+
+```bash
+python3 -c "
+from src.ingest import ingest
+import json
+r = ingest('文字內容')
+print(json.dumps({k: v for k, v in r.items() if k != 'embedding'}, ensure_ascii=False, indent=2))
+"
+```
+
+然後用 ingest 的結果（實體、關鍵詞）帶學生做手動查核練習：
+1. 報告實體
+2. 問學生哪個值得查
+3. 幫學生用搜尋引擎查那些關鍵詞
+4. 討論找到的結果
 
 詳細指引見 AGENT.md。
