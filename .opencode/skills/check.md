@@ -41,28 +41,28 @@ python3 -c "
 import json, sys
 sys.path.insert(0, '.')
 from src.retrieve import search
-from src.enrich import _wiki_summary
+from src.enrich import enrich_entity
 
 queries = {{QUERIES}}  # 從 Step 2 決定的查詢詞列表
 
-results = {}
-for q in queries:
-    results[q] = search(q)
-
-# Wikipedia
-wiki_results = {}
+# Wikidata KG 查詢（人名/機構 — 取得結構化事實）
+print('=== Wikidata KG ===')
 for name in {{PERSON_ORG_LIST}}:  # Step 1 中 type=person 或 org 的實體
-    w = _wiki_summary(name)
-    if w:
-        wiki_results[name] = {'extract': w['extract'][:300], 'url': w['wiki_url']}
+    r = enrich_entity(name)
+    if r.get('found'):
+        print(json.dumps(r, ensure_ascii=False))
 
-print('=== 搜尋結果 ===')
-print(json.dumps(results, ensure_ascii=False, indent=2))
+# 搜尋引擎
 print()
-print('=== Wikipedia ===')
-print(json.dumps(wiki_results, ensure_ascii=False, indent=2))
+print('=== 搜尋結果 ===')
+for q in queries:
+    results = search(q)
+    for ev in results[:3]:
+        print(json.dumps({'query': q, 'title': ev['title'], 'url': ev['url'], 'snippet': ev['snippet'][:200]}, ensure_ascii=False))
 "
 ```
+
+Wikidata 回傳的結構化事實（出生/死亡日期、死因、職業、國籍等）是硬資料，優先採信。搜尋結果作為補充。
 
 ### Step 4: 你自己比對差異
 

@@ -31,6 +31,84 @@ def _wiki_summary(name: str) -> dict | None:
         return None
 
 
+# Wikidata 常用屬性
+_WD_PROPS = {
+    "P569": "出生日期",
+    "P570": "死亡日期",
+    "P509": "死因",
+    "P27": "國籍",
+    "P106": "職業",
+    "P39": "職位",
+    "P108": "任職機構",
+    "P159": "總部位置",
+    "P17": "所屬國家",
+    "P571": "成立日期",
+    "P576": "解散日期",
+    "P1128": "員工數",
+    "P2139": "營收",
+}
+
+
+def _wikidata_facts(qid: str) -> dict:
+    """Query Wikidata for structured facts about an entity."""
+    key = ("wikidata", qid)
+    if key in _cache:
+        return _cache[key]
+    try:
+        url = f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json"
+        req = Request(url, headers={"User-Agent": "Collatro/0.1"})
+        data = json.loads(urlopen(req, timeout=10).read())
+        entity = data.get("entities", {}).get(qid, {})
+        claims = entity.get("claims", {})
+
+        facts = {}
+        for prop_id, label in _WD_PROPS.items():
+            if prop_id not in claims:
+                continue
+            values = []
+            for claim in claims[prop_id][:3]:  # max 3 values per prop
+                mainsnak = claim.get("mainsnak", {})
+                dv = mainsnak.get("datavalue", {})
+                if dv.get("type") == "time":
+                    values.append(dv["value"]["time"].lstrip("+").split("T")[0])
+                elif dv.get("type") == "wikibase-entityid":
+                    # Resolve entity label
+                    ref_id = dv["value"]["id"]
+                    ref_label = _resolve_wd_label(ref_id)
+                    if ref_label:
+                        values.append(ref_label)
+                elif dv.get("type") == "quantity":
+                    values.append(dv["value"]["amount"].lstrip("+"))
+                elif dv.get("type") == "string":
+                    values.append(dv["value"])
+            if values:
+                facts[label] = values if len(values) > 1 else values[0]
+
+        _cache[key] = facts
+        return facts
+    except Exception:
+        _cache[key] = {}
+        return {}
+
+
+def _resolve_wd_label(qid: str) -> str:
+    """Get Chinese label for a Wikidata entity."""
+    key = ("wd_label", qid)
+    if key in _cache:
+        return _cache[key]
+    try:
+        url = f"https://www.wikidata.org/w/api.php?action=wbgetentities&ids={qid}&props=labels&languages=zh-tw|zh&format=json"
+        req = Request(url, headers={"User-Agent": "Collatro/0.1"})
+        data = json.loads(urlopen(req, timeout=5).read())
+        labels = data.get("entities", {}).get(qid, {}).get("labels", {})
+        label = labels.get("zh-tw", labels.get("zh", {})).get("value", "")
+        _cache[key] = label
+        return label
+    except Exception:
+        _cache[key] = ""
+        return ""
+
+
 def _wiki_categories(name: str) -> list[str]:
     key = ("cats", name)
     if key in _cache:
@@ -61,12 +139,17 @@ def enrich_entity(name: str) -> dict:
     if not wiki:
         return {"name": name, "found": False}
     cats = _wiki_categories(name)
+    wikidata = {}
+    if wiki.get("wikidata_id"):
+        wikidata = _wikidata_facts(wiki["wikidata_id"])
     return {
         "name": name,
         "found": True,
         "description": wiki["description"],
         "extract": wiki["extract"],
         "wiki_url": wiki["wiki_url"],
+        "wikidata_id": wiki["wikidata_id"],
+        "wikidata": wikidata,
         "categories": cats,
     }
 
