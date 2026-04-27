@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; width: 1080px; height: 1080px; }
+  .card { width: 1080px; min-height: 1080px; }
+</style>
+</head>
+<body>
+<div class="card bg-{{bg_dark}} text-white p-12 flex flex-col">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-3xl font-bold text-{{accent}}">Collatro</h1>
+    <span class="text-sm text-{{text_muted}}">事實比對卡</span>
+  </div>
+
+  <!-- Original claim -->
+  <div class="bg-{{bg_card}} rounded-xl p-6 mb-6">
+    <div class="text-xs text-{{text_muted}} mb-2 uppercase tracking-wide">原始聲明</div>
+    <p class="text-lg leading-relaxed">{{claim_text}}</p>
+  </div>
+
+  <!-- Diff results -->
+  <div class="space-y-4 flex-1">
+    {{mismatches}}
+  </div>
+
+  <!-- Verdict -->
+  <div class="mt-6 pt-6 border-t border-{{border}} flex items-center justify-between">
+    <span class="text-2xl font-bold {{verdict_color}}">{{verdict_label}}</span>
+    <span class="text-sm text-{{text_muted}}">{{summary}}</span>
+  </div>
+
+  <!-- Sources -->
+  <div class="mt-4 text-xs text-{{text_dim}}">
+    {{sources}}
+  </div>
+</div>
+</body>
+</html>

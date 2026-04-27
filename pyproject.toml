@@ -1,0 +1,9 @@
+[project]
+name = "collatro"
+version = "0.1.0"
+description = "Fact-checking teaching tool: decompose → retrieve → diff → render"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+collatro = "src.run:main"
