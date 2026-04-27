@@ -30,7 +30,7 @@ def _searxng(query: str) -> list[dict]:
 
 def _duckduckgo(query: str) -> list[dict]:
     """Fallback: scrape DuckDuckGo HTML."""
-    req = Request(f"{DDG_URL}?q={quote_plus(query)}", headers={"User-Agent": "Mozilla/5.0"})
+    req = Request(f"{DDG_URL}?q={quote_plus(query)}&kl=tw-tzh", headers={"User-Agent": "Mozilla/5.0"})
     html = urlopen(req, timeout=15).read().decode("utf-8", errors="replace")
     results = []
     for m in re.finditer(
