@@ -176,6 +176,49 @@ POST /api/check {text, theme} → {claims}
 
 ---
 
+## 與其他工具的比較
+
+### 台灣現有工具
+
+| 工具 | 做法 | 優點 | 限制 |
+|------|------|------|------|
+| **Cofacts 真的假的** | LINE bot + 群眾協作資料庫 | 即時回覆、社群驅動、開源 | 依賴志工回覆速度；只能查「已被回報過的」訊息 |
+| **MyGoPen** | LINE bot + 編輯團隊查核 | 品質穩定、有專業編輯 | 人力有限、非開源、無法自行擴充 |
+| **美玉姨** | LINE bot + 串接 Cofacts | 家庭群組友善、長輩能用 | 本質是 Cofacts 的前端，受限於同一資料庫 |
+| **TFC 台灣事實查核中心** | 記者手動查核 + 發報告 | IFCN 認證、權威性高 | 產量低（月均 35 篇）、選題偏差、無 API |
+
+### 國際開源 pipeline
+
+| 工具 | 架構 | 優點 | 限制 |
+|------|------|------|------|
+| **Loki** (1.1k⭐) | decompose → check-worthiness → query → evidence → verify | 最完整端到端、支援多模態 | 英文 only、依賴 OpenAI + Serper API（付費） |
+| **SAFE** (Google) | 拆聲明 → 逐一 Google Search → LLM 判定 | Google 出品、論文級品質 | 閉源、只有論文沒有可用工具 |
+| **ClaimBuster** | 機器學習判斷「值得查核」的句子 | 學術標竿、有 API | 只做 check-worthiness，不做完整查核 |
+| **OpenFactCheck** | 統一框架：可插拔不同查核引擎 | 可比較不同方法的準確度 | 偏學術評估，非生產工具 |
+| **Veracity** (2025) | LLM + 搜尋 + 透明度報告 | 開源、強調可解釋性 | 英文 only、早期階段 |
+
+### Collatro 的定位
+
+| | Cofacts | Loki | ClaimBuster | **Collatro** |
+|---|---|---|---|---|
+| 中文支援 | ✓ | ✗ | ✗ | ✓ |
+| 需要 API key | ✗ | ✓ (OpenAI) | ✓ | ✗ |
+| 本地推論 | ✗ | ✗ | ✗ | ✓ |
+| 結構化 diff | ✗ | ✗ | ✗ | ✓ (NER/數字/時間線) |
+| 教學導向 | ✗ | ✗ | ✗ | ✓ (互動模式) |
+| 視覺化輸出 | ✗ | ✗ | ✗ | ✓ (1080×1080 圖卡) |
+| 群眾協作 | ✓ | ✗ | ✗ | ✗ |
+| 即時回覆 | ✓ (LINE) | ✗ | ✗ | ✗ |
+
+**Collatro 不是要取代 Cofacts 或 Loki。** 它們解決不同問題：
+- Cofacts 解決「長輩收到謠言怎麼辦」→ 即時回覆
+- Loki 解決「如何自動化查核流程」→ 端到端 pipeline
+- **Collatro 解決「怎麼教學生自己查核」→ 方法論教學**
+
+核心差異：Collatro 不給結論，只給比對結果。學生必須自己判斷「這個差異代表什麼」。
+
+---
+
 ## 與 Anseropolis 的關係
 
 Collatro 是 [Anseropolis](https://github.com/FakeRocket543/anseropolis) 的教學簡化版。
