@@ -1,6 +1,14 @@
-# Collatro
+# Collatro — 貼上就查
 
-> collatio (拉丁文：對照) — 事實比對工具
+<div align="center">
+  <img src="../icons/collatro_logo.png" alt="Collatro Logo" width="300"/>
+</div>
+
+> **collatro** (拉丁文雙關語)
+> 1. *collatio*: 對照、比對
+> 2. *collatro*: 對著...狂吠、齊聲抨擊
+> 
+> **Collatro — 像看門鵝一樣的事實比對工具**
 
 CKIP 斷詞 → 實體提取 → Wikidata KG → 搜尋引擎比對 → Slides 報告 + 圖卡。
 
