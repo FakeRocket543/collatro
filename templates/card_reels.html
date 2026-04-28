@@ -6,10 +6,17 @@
 <style>
   body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
   .card { width: 1080px; height: 1920px; }
+  .inner {
+    width: calc(1080px / {{font_scale}});
+    height: calc(1920px / {{font_scale}});
+    transform: scale({{font_scale}});
+    transform-origin: top left;
+  }
 </style>
 </head>
 <body>
-<div class="card bg-{{bg_dark}} text-white p-14 flex flex-col justify-between">
+<div class="card bg-{{bg_dark}}">
+<div class="inner text-white p-14 flex flex-col justify-between">
   <!-- Header -->
   <div class="flex items-center justify-between">
     <h1 class="text-3xl font-bold text-{{accent}}">Collatro</h1>
@@ -17,7 +24,7 @@
   </div>
 
   <!-- Original claim -->
-  <div class="bg-{{bg_card}} rounded-2xl p-8 flex items-center">
+  <div class="bg-{{bg_card}} rounded-2xl p-8">
     <p class="text-2xl leading-relaxed">{{claim_text}}</p>
   </div>
 
@@ -25,15 +32,16 @@
   {{kg_tags}}
 
   <!-- Diff results -->
-  <div class="space-y-4 flex-1 flex flex-col justify-center">
+  <div class="space-y-4">
     {{mismatches}}
   </div>
 
-  <!-- Verdict badge (large, centered) -->
+  <!-- Verdict badge -->
   <div class="flex flex-col items-center gap-3 py-8">
     <span class="text-5xl font-black {{verdict_color}}">{{verdict_label}}</span>
     <span class="text-lg text-{{text_muted}} text-center">{{summary}}</span>
   </div>
+</div>
 </div>
 </body>
 </html>

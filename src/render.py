@@ -1,4 +1,4 @@
-"""collatro.render — Tailwind HTML card + Playwright screenshot (橫式 + Reels + IG Post)."""
+"""collatro.render — Tailwind HTML card + Playwright screenshot (自適應字體 + 自動分頁)."""
 
 from pathlib import Path
 
@@ -29,18 +29,15 @@ def _theme_classes(theme: str) -> dict:
 
 
 def _render_kg_tags(claim: dict) -> str:
-    """Render Wikidata KG facts as tag pills."""
     enrich = claim.get("enrich", {})
     if not enrich:
         return ""
     tags = []
-    # From wikidata structured facts
     wd = enrich.get("wikidata", {})
     for label, value in wd.items():
         if isinstance(value, list):
             value = "、".join(value[:2])
         tags.append(f'<span class="bg-cyan-500/20 text-cyan-300 text-xs px-2 py-1 rounded">{label}：{value}</span>')
-    # Description as tag
     desc = enrich.get("description", "")
     if desc:
         tags.append(f'<span class="bg-slate-500/20 text-slate-300 text-xs px-2 py-1 rounded">{desc}</span>')
@@ -82,111 +79,202 @@ def _render_sources(evidence: list[dict]) -> str:
     return html
 
 
+def _empty_mismatch(verdict: str, size: str = "base") -> str:
+    if verdict == "match":
+        return f'<div class="text-green-300 text-{size} py-4 text-center">所有事實與證據吻合 ✓</div>'
+    return f'<div class="text-yellow-300 text-{size} py-4 text-center">無具體差異可列出</div>'
+
+
+def _get_mismatches_html(diff: dict) -> str:
+    html = _render_section(diff.get("ner", []), "ner")
+    html += _render_section(diff.get("numbers", []), "numbers")
+    html += _render_section(diff.get("timeline", []), "timeline")
+    return html
+
+
+def _get_summary(diff: dict) -> str:
+    summary = diff.get("summary", "")
+    if not summary or summary.startswith("{") or len(summary) > 80:
+        return ""
+    return summary
+
+
+# ─── 橫式 (auto height) ───
+
 def render_html(claim: dict, theme: str = "slate") -> str:
-    """Render a single claim to HTML string."""
     diff = claim.get("diff", {})
     verdict = diff.get("verdict", "insufficient")
     color, label = VERDICT_LABELS.get(verdict, VERDICT_LABELS["insufficient"])
     tc = _theme_classes(theme)
 
-    mismatches_html = _render_section(diff.get("ner", []), "ner")
-    mismatches_html += _render_section(diff.get("numbers", []), "numbers")
-    mismatches_html += _render_section(diff.get("timeline", []), "timeline")
-
-    if not mismatches_html and verdict == "match":
-        mismatches_html = '<div class="text-green-300 text-base py-4 text-center">所有事實與證據吻合 ✓</div>'
-    elif not mismatches_html:
-        mismatches_html = '<div class="text-yellow-300 text-base py-4 text-center">無具體差異可列出</div>'
-
-    summary = diff.get("summary", "")
-    if not summary or summary.startswith("{") or len(summary) > 80:
-        summary = ""
-
-    kg_html = _render_kg_tags(claim)
+    mismatches_html = _get_mismatches_html(diff)
+    if not mismatches_html:
+        mismatches_html = _empty_mismatch(verdict)
 
     html = TEMPLATE
     for key, val in tc.items():
         html = html.replace("{{" + key + "}}", val)
     html = html.replace("{{claim_text}}", claim.get("text", ""))
-    html = html.replace("{{kg_tags}}", kg_html)
+    html = html.replace("{{kg_tags}}", _render_kg_tags(claim))
     html = html.replace("{{mismatches}}", mismatches_html)
     html = html.replace("{{verdict_color}}", color)
     html = html.replace("{{verdict_label}}", label)
-    html = html.replace("{{summary}}", summary)
+    html = html.replace("{{summary}}", _get_summary(diff))
     html = html.replace("{{sources}}", _render_sources(claim.get("evidence", [])))
     return html
 
 
-def render_html_reels(claim: dict, theme: str = "slate") -> str:
-    """Render a single claim to Reels/Story HTML (1080×1920, no sources)."""
+# ─── 固定尺寸 (reels/square) 共用邏輯 ───
+
+def _build_fixed_html(claim: dict, theme: str, template: str, font_scale: float = 1.0) -> str:
     diff = claim.get("diff", {})
     verdict = diff.get("verdict", "insufficient")
     color, label = VERDICT_LABELS.get(verdict, VERDICT_LABELS["insufficient"])
     tc = _theme_classes(theme)
 
-    mismatches_html = _render_section(diff.get("ner", []), "ner")
-    mismatches_html += _render_section(diff.get("numbers", []), "numbers")
-    mismatches_html += _render_section(diff.get("timeline", []), "timeline")
+    mismatches_html = _get_mismatches_html(diff)
+    if not mismatches_html:
+        mismatches_html = _empty_mismatch(verdict, "lg")
 
-    if not mismatches_html and verdict == "match":
-        mismatches_html = '<div class="text-green-300 text-xl py-4 text-center">所有事實與證據吻合 ✓</div>'
-    elif not mismatches_html:
-        mismatches_html = '<div class="text-yellow-300 text-xl py-4 text-center">無具體差異可列出</div>'
-
-    summary = diff.get("summary", "")
-    if not summary or summary.startswith("{") or len(summary) > 80:
-        summary = ""
-
-    kg_html = _render_kg_tags(claim)
-
-    html = TEMPLATE_REELS
+    html = template
     for key, val in tc.items():
         html = html.replace("{{" + key + "}}", val)
     html = html.replace("{{claim_text}}", claim.get("text", ""))
-    html = html.replace("{{kg_tags}}", kg_html)
+    html = html.replace("{{kg_tags}}", _render_kg_tags(claim))
     html = html.replace("{{mismatches}}", mismatches_html)
     html = html.replace("{{verdict_color}}", color)
     html = html.replace("{{verdict_label}}", label)
-    html = html.replace("{{summary}}", summary)
+    html = html.replace("{{summary}}", _get_summary(diff))
+    html = html.replace("{{font_scale}}", f"{font_scale:.2f}")
     return html
 
 
-def render_html_square(claim: dict, theme: str = "slate") -> str:
-    """Render a single claim to square HTML (no sources, verdict-focused)."""
+def _build_page_html(claim: dict, theme: str, template: str, page_content: str, font_scale: float = 1.0) -> str:
+    """Build a single page with custom content section for pagination."""
     diff = claim.get("diff", {})
     verdict = diff.get("verdict", "insufficient")
     color, label = VERDICT_LABELS.get(verdict, VERDICT_LABELS["insufficient"])
     tc = _theme_classes(theme)
 
-    mismatches_html = _render_section(diff.get("ner", []), "ner")
-    mismatches_html += _render_section(diff.get("numbers", []), "numbers")
-    mismatches_html += _render_section(diff.get("timeline", []), "timeline")
-
-    if not mismatches_html and verdict == "match":
-        mismatches_html = '<div class="text-green-300 text-lg py-2 text-center">所有事實與證據吻合 ✓</div>'
-    elif not mismatches_html:
-        mismatches_html = '<div class="text-yellow-300 text-lg py-2 text-center">無具體差異可列出</div>'
-
-    summary = diff.get("summary", "")
-    if not summary or summary.startswith("{") or len(summary) > 80:
-        summary = ""
-
-    kg_html = _render_kg_tags(claim)
-
-    html = TEMPLATE_SQUARE
+    html = template
     for key, val in tc.items():
         html = html.replace("{{" + key + "}}", val)
     html = html.replace("{{claim_text}}", claim.get("text", ""))
-    html = html.replace("{{kg_tags}}", kg_html)
-    html = html.replace("{{mismatches}}", mismatches_html)
+    html = html.replace("{{kg_tags}}", "")
+    html = html.replace("{{mismatches}}", page_content)
     html = html.replace("{{verdict_color}}", color)
     html = html.replace("{{verdict_label}}", label)
-    html = html.replace("{{summary}}", summary)
+    html = html.replace("{{summary}}", _get_summary(diff))
+    html = html.replace("{{font_scale}}", f"{font_scale:.2f}")
     return html
 
+
+def _split_claim_pages(claim: dict, theme: str, template: str, container_height: int) -> list[str]:
+    """Split a claim into multiple page HTMLs if content overflows."""
+    diff = claim.get("diff", {})
+    verdict = diff.get("verdict", "insufficient")
+    color, label = VERDICT_LABELS.get(verdict, VERDICT_LABELS["insufficient"])
+
+    # Page 1: claim + verdict
+    page1_content = f'''<div class="flex flex-col items-center gap-3 py-4">
+        <span class="text-5xl font-black {color}">{label}</span>
+        <span class="text-lg text-{theme}-400 text-center">{_get_summary(diff)}</span>
+    </div>'''
+    p1 = _build_page_html(claim, theme, template, page1_content, font_scale=1.30)
+    pages = [p1]
+
+    # Page 2: diff details
+    mismatches = _get_mismatches_html(diff)
+    if mismatches:
+        p2 = _build_page_html(claim, theme, template, mismatches, font_scale=1.20)
+        p2 = p2.replace(claim.get("text", ""), "（續）比對差異")
+        pages.append(p2)
+
+    return pages
+
+
+def _render_fixed_format(page, claim: dict, theme: str, template: str,
+                         container_height: int, container_width: int,
+                         base_path: Path) -> list[Path]:
+    """Render a fixed-size format with auto-scaling or pagination."""
+    paths = []
+    page.set_viewport_size({"width": container_width, "height": container_height})
+
+    # Measure natural content height at scale=1 (temporarily set inner to height:auto)
+    html = _build_fixed_html(claim, theme, template, font_scale=1.0)
+    page.set_content(html, wait_until="networkidle")
+    content_h = page.evaluate("""() => {
+        const el = document.querySelector('.inner');
+        const orig = el.style.height;
+        el.style.height = 'auto';
+        const h = el.scrollHeight;
+        el.style.height = orig;
+        return h;
+    }""")
+
+    if content_h <= container_height:
+        # Content fits at 1x — binary search for max scale
+        lo, hi = 1.0, min(container_height / max(content_h, 1), 2.5)
+
+        if hi > 1.08:
+            for _ in range(6):
+                mid = (lo + hi) / 2
+                test_html = _build_fixed_html(claim, theme, template, font_scale=mid)
+                page.set_content(test_html, wait_until="networkidle")
+                h = page.evaluate("""() => {
+                    const el = document.querySelector('.inner');
+                    const orig = el.style.height;
+                    el.style.height = 'auto';
+                    const h = el.scrollHeight;
+                    el.style.height = orig;
+                    return h;
+                }""")
+                # inner renders at width=1080/mid, so content reflows
+                # visual height after scale = h * mid
+                if h * mid <= container_height:
+                    lo = mid
+                else:
+                    hi = mid
+
+            html = _build_fixed_html(claim, theme, template, font_scale=lo)
+            page.set_content(html, wait_until="networkidle")
+
+        page.screenshot(path=str(base_path), clip={"x": 0, "y": 0, "width": container_width, "height": container_height})
+        paths.append(base_path)
+
+    else:
+        # Content overflows at 1x — paginate
+        page_htmls = _split_claim_pages(claim, theme, template, container_height)
+        for pi, phtml in enumerate(page_htmls):
+            page.set_content(phtml, wait_until="networkidle")
+            ph = page.evaluate("""() => {
+                const el = document.querySelector('.inner');
+                const orig = el.style.height;
+                el.style.height = 'auto';
+                const h = el.scrollHeight;
+                el.style.height = orig;
+                return h;
+            }""")
+            current_scale = 1.30 if pi == 0 else 1.20
+            if ph * current_scale < container_height:
+                new_scale = min(container_height / max(ph, 1) * 0.92, 1.6)
+                phtml = phtml.replace(f"scale({current_scale:.2f})", f"scale({new_scale:.2f}")
+                phtml = phtml.replace(f"1080px / {current_scale:.2f}", f"1080px / {new_scale:.2f}")
+                phtml = phtml.replace(f"/ {current_scale:.2f})", f"/ {new_scale:.2f})")
+                page.set_content(phtml, wait_until="networkidle")
+
+            suffix = f"_p{pi+1}" if pi > 0 else ""
+            out = base_path.with_name(base_path.stem + suffix + base_path.suffix)
+            page.screenshot(path=str(out), clip={"x": 0, "y": 0, "width": container_width, "height": container_height})
+            paths.append(out)
+
+    return paths
+
+
+# ─── Main render function ───
 
 def render(claims: list[dict], theme: str = "slate") -> list[Path]:
-    """Render all claims to 3 formats: landscape + reels + square. Returns list of output paths."""
+    """Render all claims to 3 formats with auto-scaling and pagination."""
     from playwright.sync_api import sync_playwright
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -207,21 +295,21 @@ def render(claims: list[dict], theme: str = "slate") -> list[Path]:
             page.screenshot(path=str(out_path), clip={"x": 0, "y": 0, "width": 1080, "height": height})
             paths.append(out_path)
 
-            # ── Reels/Story 直式 (1080×1920) ──
-            html_reels = render_html_reels(claim, theme)
-            page.set_viewport_size({"width": 1080, "height": 1920})
-            page.set_content(html_reels, wait_until="networkidle")
-            out_reels = OUTPUT_DIR / f"claim_{i+1}_reels.png"
-            page.screenshot(path=str(out_reels), clip={"x": 0, "y": 0, "width": 1080, "height": 1920})
-            paths.append(out_reels)
+            # ── Reels/Story (1080×1920) — 自適應 ──
+            reels_paths = _render_fixed_format(
+                page, claim, theme, TEMPLATE_REELS,
+                container_height=1920, container_width=1080,
+                base_path=OUTPUT_DIR / f"claim_{i+1}_reels.png"
+            )
+            paths.extend(reels_paths)
 
-            # ── IG Post 正方形 (1080×1080) ──
-            html_sq = render_html_square(claim, theme)
-            page.set_viewport_size({"width": 1080, "height": 1080})
-            page.set_content(html_sq, wait_until="networkidle")
-            out_sq = OUTPUT_DIR / f"claim_{i+1}_square.png"
-            page.screenshot(path=str(out_sq), clip={"x": 0, "y": 0, "width": 1080, "height": 1080})
-            paths.append(out_sq)
+            # ── Square (1080×1080) — 自適應 ──
+            sq_paths = _render_fixed_format(
+                page, claim, theme, TEMPLATE_SQUARE,
+                container_height=1080, container_width=1080,
+                base_path=OUTPUT_DIR / f"claim_{i+1}_square.png"
+            )
+            paths.extend(sq_paths)
 
         browser.close()
     return paths
