@@ -6,16 +6,16 @@
 #
 # 安裝項目：
 #   1. Homebrew
-#   2. 終端機（Ghostty / iTerm2）+ 深色主題
+#   2. iTerm2 + 深色主題
 #   3. Node.js
 #   4. kiro-cli      — Claude（免費）
 #   5. OpenAI Codex  — GPT（免費）
 #   6. Gemini CLI    — Gemini（免費）
-#   7. Collatro      — 查核管線
-#   8. 工作區 + MCP 設定
+#   7. Collatro      — 查核管線（含 Python 依賴）
+#   8. 工作區設定
 #
 # 用法：
-#   curl -fsSL https://172329.xyz/shuj_2026/20260428_install.sh | bash
+#   curl -fsSL https://172329.xyz/20260428/install.sh | bash
 # ============================================================
 
 set -e
@@ -43,52 +43,9 @@ fi
 info "Homebrew OK"
 
 # ── 2. 終端機 ──
-echo "── 2/8 終端機（深色）──"
-echo ""
-echo "  選一個終端機："
-echo "    1) Ghostty   — 超快、GPU 加速、原生 macOS（推薦）"
-echo "    2) iTerm2    — 功能最多、最多人用"
-echo "    3) 跳過      — 用內建 Terminal.app"
-echo ""
-read -p "  輸入 1、2 或 3（預設 1）：" TERM_CHOICE < /dev/tty
-TERM_CHOICE=${TERM_CHOICE:-1}
-
-TERM_APP=""
-
-case "$TERM_CHOICE" in
-    2)
-        brew list --cask iterm2 &>/dev/null 2>&1 || brew install --cask iterm2
-        TERM_APP="iTerm"
-        info "iTerm2 OK"
-        ;;
-    3)
-        TERM_APP=""
-        ;;
-    *)
-        brew list --cask ghostty &>/dev/null 2>&1 || brew install --cask ghostty
-        # Ghostty 深色設定
-        GHOSTTY_DIR="$HOME/.config/ghostty"
-        mkdir -p "$GHOSTTY_DIR"
-        if [ ! -f "$GHOSTTY_DIR/config" ] || ! grep -q "課程設定" "$GHOSTTY_DIR/config" 2>/dev/null; then
-            cat > "$GHOSTTY_DIR/config" << 'EOF'
-# 課程設定
-theme = catppuccin-mocha
-font-size = 16
-window-padding-x = 12
-window-padding-y = 12
-macos-option-as-alt = true
-confirm-close-surface = false
-EOF
-        fi
-        TERM_APP="Ghostty"
-        info "Ghostty OK（深色 catppuccin-mocha）"
-        ;;
-esac
-
-# Terminal.app 也改深色
-defaults write com.apple.Terminal "Default Window Settings" -string "Pro" 2>/dev/null
-defaults write com.apple.Terminal "Startup Window Settings" -string "Pro" 2>/dev/null
-info "Terminal.app 深色 OK"
+echo "── 2/8 iTerm2（深色）──"
+brew list --cask iterm2 &>/dev/null 2>&1 || brew install --cask iterm2
+info "iTerm2 OK"
 
 # ── 3. Node.js ──
 echo "── 3/8 Node.js ──"
@@ -99,6 +56,11 @@ info "Node.js OK ($(node --version))"
 echo "── 4/8 kiro-cli（Claude 免費）──"
 if ! command -v kiro-cli &>/dev/null; then
     curl -fsSL https://cli.kiro.dev/install | bash 2>/dev/null
+    # 確保 ~/.local/bin 在 PATH（kiro-cli 裝在這裡）
+    if ! grep -q '.local/bin' ~/.zshrc 2>/dev/null; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+    fi
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 info "kiro-cli OK"
 
@@ -130,68 +92,43 @@ info "Collatro OK（~/collatro）"
 
 # ── 8. 工作區設定 ──
 echo "── 8/8 工作區設定 ──"
-WORKSPACE="$COLLATRO_DIR"
 
-# MCP 設定
-ZHTW_BIN=$(command -v zhtw-mcp 2>/dev/null || echo "$HOME/.local/bin/zhtw-mcp")
-PYTHON_BIN=$(command -v python3.13 || command -v python3)
-
-cat > "$WORKSPACE/.mcp.json" << MCPEOF
-{
-  "mcpServers": {
-    "zhtw-mcp": {
-      "command": "$ZHTW_BIN",
-      "args": []
-    }
-  }
-}
-MCPEOF
-
-# kiro-cli 設定
+# kiro-cli 設定（空 MCP，collatro 不需要 MCP server）
 mkdir -p ~/.kiro
-cp "$WORKSPACE/.mcp.json" ~/.kiro/mcp.json 2>/dev/null
 
 info "工作區就緒：~/collatro"
 
 # ============================================================
-# 完成
+# 完成 — iTerm2 開 3 個 tab，各跑一個 CLI
 # ============================================================
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║  ✅ 全部裝好了！                                     ║"
-echo "╠══════════════════════════════════════════════════════╣"
-echo "║                                                      ║"
-echo "║  👉 下一步：                                         ║"
-echo "║                                                      ║"
-echo "║    cd ~/collatro                                     ║"
-echo "║                                                      ║"
-echo "║  選一個 AI 助手：                                    ║"
-echo "║    kiro-cli chat               ← Claude 免費         ║"
-echo "║    codex                       ← GPT 免費            ║"
-echo "║    gemini                      ← Gemini 免費         ║"
-echo "║                                                      ║"
-echo "║  進去後貼上一則你覺得可疑的訊息，AI 會帶你查核。     ║"
-echo "║                                                      ║"
+echo "║  ✅ 安裝完成！正在開啟三個 AI 助手…                  ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
-# 自動打開終端機
-if [ "$TERM_APP" = "Ghostty" ]; then
-    open -a Ghostty
-elif [ "$TERM_APP" = "iTerm" ]; then
-    osascript << ASCRIPT
+osascript << 'ASCRIPT'
 tell application "iTerm"
     activate
     set newWindow to (create window with default profile)
     tell current session of newWindow
-        write text "cd ~/collatro && echo '👉 貼上一則可疑訊息，開始查核'"
+        write text "cd ~/collatro && kiro-cli chat"
+    end tell
+    tell newWindow
+        set tab2 to (create tab with default profile)
+        tell current session of tab2
+            write text "cd ~/collatro && codex"
+        end tell
+        set tab3 to (create tab with default profile)
+        tell current session of tab3
+            write text "cd ~/collatro && gemini"
+        end tell
     end tell
 end tell
 ASCRIPT
-fi
 
-echo "cd ~/collatro" | pbcopy
-info "已複製到剪貼簿：cd ~/collatro"
-echo "  👉 重開終端機後貼上（Cmd+V）就能開始"
+info "三個 AI 助手已啟動 🎉"
+echo "  每個 tab 會要求登入（開瀏覽器），登入完就能用了。"
+echo "  選一個你喜歡的，貼上可疑訊息開始查核。"
 echo ""
