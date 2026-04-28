@@ -1,11 +1,13 @@
-"""collatro.run — CLI: ingest → decompose → enrich → retrieve → diff → package → render"""
+"""collatro.run — CLI: ingest‖decompose → fuse → enrich → retrieve → diff → package → render"""
 
 import argparse
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from src.ingest import ingest
 from src.decompose import decompose
+from src.fuse import fuse
 from src.enrich import enrich
 from src.retrieve import retrieve
 from src.diff import diff
@@ -17,25 +19,29 @@ def run(text: str, theme: str = "slate") -> list:
     print(f"📝 輸入（{len(text)} 字）| 主題：{theme}")
     t0 = time.time()
 
-    print("1/7 斷詞 + NER…")
-    ingest_result = ingest(text)
-    print(f"    → 後端：{ingest_result['backend']}，關鍵詞：{' '.join(ingest_result['keywords'][:5])}")
-    if ingest_result["entities"]:
-        ent_names = [e["text"] if isinstance(e, dict) else e for e in ingest_result["entities"][:5]]
-        print(f"    → 實體：{', '.join(ent_names)}")
+    # ── 步驟 1+2 並行：NER 與 LLM 同時跑 ──
+    print("1/7 斷詞+NER ‖ LLM拆解聲明（並行）…")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        fut_ingest = pool.submit(ingest, text)
+        fut_decompose = pool.submit(decompose, text)
+        ingest_result = fut_ingest.result()
+        claims = fut_decompose.result()
+    print(f"    → NER 後端：{ingest_result['backend']}，關鍵詞：{' '.join(ingest_result['keywords'][:5])}")
+    print(f"    → LLM：{len(claims)} 則聲明")
 
-    print("2/7 拆解聲明…")
-    claims = decompose(text)
-    print(f"    → {len(claims)} 則聲明")
+    # ── 步驟 3：Agent 融合定奪 ──
+    print("2/7 Agent 融合（NER + LLM → 最終查詢）…")
+    fused = fuse(ingest_result, claims)
+    fused_entities = fused.get("entities", [])
+    fused_claims = fused.get("claims", [])
+    print(f"    → 實體 {len(fused_entities)} 個，聲明 {len(fused_claims)} 則")
+
+    # 用 fused 結果更新 claims 的 keywords
+    _patch_claims_with_fused(claims, fused_claims)
 
     print("3/7 查詢實體背景…")
-    # Use NER entities + claims' who field
-    entities = [e["text"] if isinstance(e, dict) else e for e in ingest_result["entities"]]
-    for c in claims:
-        who = c.get("who", "")
-        if who and who not in entities and len(who) >= 2:
-            entities.append(who)
-    entities = entities[:8]
+    entities = [e.get("text", "") if isinstance(e, dict) else str(e) for e in fused_entities]
+    entities = [e for e in entities if len(e) >= 2][:8]
     enrich_result = None
     if entities:
         enrich_result = enrich(entities)
@@ -58,6 +64,7 @@ def run(text: str, theme: str = "slate") -> list:
     print("6/7 儲存結果…")
     pkg = package(text, claims, enrich_result)
     pkg["ingest"] = {"keywords": ingest_result["keywords"], "entities": ingest_result["entities"]}
+    pkg["fused"] = fused
     md_path = save(pkg)
     print(f"    → {md_path}")
 
@@ -69,6 +76,13 @@ def run(text: str, theme: str = "slate") -> list:
     elapsed = round(time.time() - t0, 1)
     print(f"✓ 完成（{elapsed}s）")
     return claims
+
+
+def _patch_claims_with_fused(claims: list[dict], fused_claims: list[dict]):
+    """Update claims' keywords with fused search_queries when available."""
+    for i, fc in enumerate(fused_claims):
+        if i < len(claims) and fc.get("search_queries"):
+            claims[i]["keywords"] = fc["search_queries"]
 
 
 def main():

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; }
+  .card { width: 1080px; height: 1920px; }
+</style>
+</head>
+<body>
+<div class="card bg-{{bg_dark}} text-white p-14 flex flex-col justify-between">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <h1 class="text-3xl font-bold text-{{accent}}">Collatro</h1>
+    <span class="text-sm text-{{text_muted}}">事實查證</span>
+  </div>
+
+  <!-- Original claim -->
+  <div class="bg-{{bg_card}} rounded-2xl p-8 flex items-center">
+    <p class="text-2xl leading-relaxed">{{claim_text}}</p>
+  </div>
+
+  <!-- KG Tags -->
+  {{kg_tags}}
+
+  <!-- Diff results -->
+  <div class="space-y-4 flex-1 flex flex-col justify-center">
+    {{mismatches}}
+  </div>
+
+  <!-- Verdict badge (large, centered) -->
+  <div class="flex flex-col items-center gap-3 py-8">
+    <span class="text-5xl font-black {{verdict_color}}">{{verdict_label}}</span>
+    <span class="text-lg text-{{text_muted}} text-center">{{summary}}</span>
+  </div>
+</div>
+</body>
+</html>

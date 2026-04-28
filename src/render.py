@@ -1,10 +1,12 @@
-"""collatro.render — Tailwind HTML card + Playwright screenshot (自適應高度)."""
+"""collatro.render — Tailwind HTML card + Playwright screenshot (橫式 + Reels + IG Post)."""
 
 from pathlib import Path
 
 from src.config import TEMPLATES_DIR, OUTPUT_DIR
 
 TEMPLATE = (TEMPLATES_DIR / "card.html").read_text(encoding="utf-8")
+TEMPLATE_REELS = (TEMPLATES_DIR / "card_reels.html").read_text(encoding="utf-8")
+TEMPLATE_SQUARE = (TEMPLATES_DIR / "card_square.html").read_text(encoding="utf-8")
 
 RECOMMENDED_THEMES = ["slate", "sky", "emerald", "amber", "violet", "rose"]
 
@@ -115,8 +117,76 @@ def render_html(claim: dict, theme: str = "slate") -> str:
     return html
 
 
+def render_html_reels(claim: dict, theme: str = "slate") -> str:
+    """Render a single claim to Reels/Story HTML (1080×1920, no sources)."""
+    diff = claim.get("diff", {})
+    verdict = diff.get("verdict", "insufficient")
+    color, label = VERDICT_LABELS.get(verdict, VERDICT_LABELS["insufficient"])
+    tc = _theme_classes(theme)
+
+    mismatches_html = _render_section(diff.get("ner", []), "ner")
+    mismatches_html += _render_section(diff.get("numbers", []), "numbers")
+    mismatches_html += _render_section(diff.get("timeline", []), "timeline")
+
+    if not mismatches_html and verdict == "match":
+        mismatches_html = '<div class="text-green-300 text-xl py-4 text-center">所有事實與證據吻合 ✓</div>'
+    elif not mismatches_html:
+        mismatches_html = '<div class="text-yellow-300 text-xl py-4 text-center">無具體差異可列出</div>'
+
+    summary = diff.get("summary", "")
+    if not summary or summary.startswith("{") or len(summary) > 80:
+        summary = ""
+
+    kg_html = _render_kg_tags(claim)
+
+    html = TEMPLATE_REELS
+    for key, val in tc.items():
+        html = html.replace("{{" + key + "}}", val)
+    html = html.replace("{{claim_text}}", claim.get("text", ""))
+    html = html.replace("{{kg_tags}}", kg_html)
+    html = html.replace("{{mismatches}}", mismatches_html)
+    html = html.replace("{{verdict_color}}", color)
+    html = html.replace("{{verdict_label}}", label)
+    html = html.replace("{{summary}}", summary)
+    return html
+
+
+def render_html_square(claim: dict, theme: str = "slate") -> str:
+    """Render a single claim to square HTML (no sources, verdict-focused)."""
+    diff = claim.get("diff", {})
+    verdict = diff.get("verdict", "insufficient")
+    color, label = VERDICT_LABELS.get(verdict, VERDICT_LABELS["insufficient"])
+    tc = _theme_classes(theme)
+
+    mismatches_html = _render_section(diff.get("ner", []), "ner")
+    mismatches_html += _render_section(diff.get("numbers", []), "numbers")
+    mismatches_html += _render_section(diff.get("timeline", []), "timeline")
+
+    if not mismatches_html and verdict == "match":
+        mismatches_html = '<div class="text-green-300 text-lg py-2 text-center">所有事實與證據吻合 ✓</div>'
+    elif not mismatches_html:
+        mismatches_html = '<div class="text-yellow-300 text-lg py-2 text-center">無具體差異可列出</div>'
+
+    summary = diff.get("summary", "")
+    if not summary or summary.startswith("{") or len(summary) > 80:
+        summary = ""
+
+    kg_html = _render_kg_tags(claim)
+
+    html = TEMPLATE_SQUARE
+    for key, val in tc.items():
+        html = html.replace("{{" + key + "}}", val)
+    html = html.replace("{{claim_text}}", claim.get("text", ""))
+    html = html.replace("{{kg_tags}}", kg_html)
+    html = html.replace("{{mismatches}}", mismatches_html)
+    html = html.replace("{{verdict_color}}", color)
+    html = html.replace("{{verdict_label}}", label)
+    html = html.replace("{{summary}}", summary)
+    return html
+
+
 def render(claims: list[dict], theme: str = "slate") -> list[Path]:
-    """Render all claims to 1080×auto PNG. Returns list of output paths."""
+    """Render all claims to 3 formats: landscape + reels + square. Returns list of output paths."""
     from playwright.sync_api import sync_playwright
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -127,15 +197,31 @@ def render(claims: list[dict], theme: str = "slate") -> list[Path]:
         page = browser.new_page(viewport={"width": 1080, "height": 800})
 
         for i, claim in enumerate(claims):
+            # ── 橫式 desktop (1080×auto) ──
             html = render_html(claim, theme)
             page.set_content(html, wait_until="networkidle")
-            # Auto-height: measure actual content height
             height = page.evaluate("document.querySelector('.card').offsetHeight")
-            height = max(height, 400)  # minimum
+            height = max(height, 400)
             page.set_viewport_size({"width": 1080, "height": height})
             out_path = OUTPUT_DIR / f"claim_{i+1}.png"
             page.screenshot(path=str(out_path), clip={"x": 0, "y": 0, "width": 1080, "height": height})
             paths.append(out_path)
+
+            # ── Reels/Story 直式 (1080×1920) ──
+            html_reels = render_html_reels(claim, theme)
+            page.set_viewport_size({"width": 1080, "height": 1920})
+            page.set_content(html_reels, wait_until="networkidle")
+            out_reels = OUTPUT_DIR / f"claim_{i+1}_reels.png"
+            page.screenshot(path=str(out_reels), clip={"x": 0, "y": 0, "width": 1080, "height": 1920})
+            paths.append(out_reels)
+
+            # ── IG Post 正方形 (1080×1080) ──
+            html_sq = render_html_square(claim, theme)
+            page.set_viewport_size({"width": 1080, "height": 1080})
+            page.set_content(html_sq, wait_until="networkidle")
+            out_sq = OUTPUT_DIR / f"claim_{i+1}_square.png"
+            page.screenshot(path=str(out_sq), clip={"x": 0, "y": 0, "width": 1080, "height": 1080})
+            paths.append(out_sq)
 
         browser.close()
     return paths
