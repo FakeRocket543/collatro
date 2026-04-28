@@ -16,31 +16,26 @@
 </head>
 <body>
 <div class="card bg-{{bg_dark}}">
-<div class="inner text-white p-14 flex flex-col justify-between">
+<div class="inner text-white p-16 flex flex-col justify-between">
   <!-- Header -->
   <div class="flex items-center justify-between">
-    <h1 class="text-3xl font-bold text-{{accent}}">Collatro</h1>
-    <span class="text-sm text-{{text_muted}}">事實查證</span>
+    <h1 class="text-4xl font-bold text-{{accent}}">Collatro</h1>
+    <span class="text-base text-{{text_muted}}">事實查證</span>
   </div>
 
-  <!-- Original claim -->
-  <div class="bg-{{bg_card}} rounded-2xl p-8">
-    <p class="text-2xl leading-relaxed">{{claim_text}}</p>
+  <!-- Original claim (big) -->
+  <div class="bg-{{bg_card}} rounded-2xl p-10">
+    <p class="text-3xl leading-relaxed font-medium">{{claim_text}}</p>
   </div>
 
-  <!-- KG Tags -->
-  {{kg_tags}}
-
-  <!-- Diff results -->
-  <div class="space-y-4">
-    {{mismatches}}
+  <!-- Verdict badge (huge, centered) -->
+  <div class="flex flex-col items-center gap-4">
+    <span class="text-7xl font-black {{verdict_color}}">{{verdict_label}}</span>
+    <p class="text-xl text-{{text_muted}} text-center leading-relaxed">{{summary}}</p>
   </div>
 
-  <!-- Verdict badge -->
-  <div class="flex flex-col items-center gap-3 py-8">
-    <span class="text-5xl font-black {{verdict_color}}">{{verdict_label}}</span>
-    <span class="text-lg text-{{text_muted}} text-center">{{summary}}</span>
-  </div>
+  <!-- Branding footer -->
+  <div class="text-center text-sm text-{{text_muted}}">collatro — 貼上就查</div>
 </div>
 </div>
 </body>

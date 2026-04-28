@@ -24,22 +24,14 @@
   </div>
 
   <!-- Original claim -->
-  <div class="bg-{{bg_card}} rounded-2xl p-6">
-    <p class="text-xl leading-relaxed">{{claim_text}}</p>
+  <div class="bg-{{bg_card}} rounded-2xl p-8">
+    <p class="text-2xl leading-relaxed">{{claim_text}}</p>
   </div>
 
-  <!-- KG Tags -->
-  {{kg_tags}}
-
-  <!-- Diff results -->
-  <div class="space-y-3">
-    {{mismatches}}
-  </div>
-
-  <!-- Verdict badge -->
-  <div class="flex flex-col items-center gap-2 py-4">
-    <span class="text-4xl font-black {{verdict_color}}">{{verdict_label}}</span>
-    <span class="text-base text-{{text_muted}} text-center">{{summary}}</span>
+  <!-- Verdict badge (large, centered) -->
+  <div class="flex flex-col items-center gap-3">
+    <span class="text-6xl font-black {{verdict_color}}">{{verdict_label}}</span>
+    <p class="text-lg text-{{text_muted}} text-center leading-relaxed">{{summary}}</p>
   </div>
 </div>
 </div>
