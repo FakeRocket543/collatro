@@ -1,7 +1,7 @@
 # Collatro — 貼上就查
 
 <div align="center">
-  <img src="../icons/collatro_logo.png" alt="Collatro Logo" width="300"/>
+  <img src="assets/collatro_logo.webp" alt="Collatro Logo" width="300"/>
 </div>
 
 > **collatro** (拉丁文雙關語)
