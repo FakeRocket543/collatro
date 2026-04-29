@@ -96,7 +96,45 @@ echo "── 8/8 工作區設定 ──"
 # kiro-cli 設定（空 MCP，collatro 不需要 MCP server）
 mkdir -p ~/.kiro
 
+# alias：不管在哪裡，打 collatro 就進入正確狀態
+for rc in ~/.zshrc ~/.bashrc; do
+    if [ -f "$rc" ] && ! grep -q 'alias collatro=' "$rc" 2>/dev/null; then
+        echo '' >> "$rc"
+        echo '# Collatro 查核管線' >> "$rc"
+        echo 'alias collatro="cd ~/collatro && kiro"' >> "$rc"
+        echo 'alias collatro-codex="cd ~/collatro && codex"' >> "$rc"
+        echo 'alias collatro-gemini="cd ~/collatro && gemini"' >> "$rc"
+    fi
+done
+
+# 生成 START.md — agent 開啟時自動讀到的指令
+cat > "$COLLATRO_DIR/START.md" << 'STARTMD'
+# 開始查核
+
+## 你現在要做什麼
+
+1. 讀 `.claude/skills/check.md`（或 `.opencode/skills/check.md`）
+2. 跟使用者打招呼，問他要查核什麼
+3. 使用者貼文字後，照 check.md 的流程跑
+
+## 快速指令
+
+使用者如果不知道要查什麼，給他這些選項：
+
+- 「給我一個練習題」— 你出一題
+- 「幫我查這個」— 使用者貼訊息
+- 「我想查某則新聞」— 使用者貼連結
+
+## 注意
+
+- 你在 `~/collatro` 目錄下
+- 所有 python 指令都用 `python3 -c "..."` 執行
+- 圖卡會存在 `output/` 資料夾
+- **不要叫使用者自己跑指令，你代為執行**
+STARTMD
+
 info "工作區就緒：~/collatro"
+info "alias 已加入：打 collatro / collatro-codex / collatro-gemini 即可啟動"
 
 # ============================================================
 # 完成 — iTerm2 開 3 個 tab，各跑一個 CLI

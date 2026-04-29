@@ -5,9 +5,9 @@ import re
 
 from src.llm import chat
 
-PROMPT = """你是事實查核教學助手。比較「聲明」和「證據」，找出不一致的地方。
+PROMPT = """你是事實查核教學助手。比較「主張」和「證據」，找出不一致的地方。
 
-聲明：{claim}
+主張：{claim}
 
 證據：
 {evidence}

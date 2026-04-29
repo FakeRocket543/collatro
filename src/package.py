@@ -64,8 +64,8 @@ def _render_md(pkg: dict) -> str:
         lines.append("")
 
     # Claims
-    lines.append("## 聲明比對\n")
-    lines.append("| # | 聲明 | 判定 | 差異 |")
+    lines.append("## 主張比對\n")
+    lines.append("| # | 主張 | 判定 | 差異 |")
     lines.append("|---|------|------|------|")
     for i, c in enumerate(pkg.get("claims", []), 1):
         diff = c.get("diff", {})

@@ -72,7 +72,7 @@ echo 'export COLLATRO_SEARXNG_URL=http://localhost:8888' >> .venv/bin/activate
 
 ### 第三步：報告結果
 
-1. 用正常語言解讀：哪些聲明有來源支持、哪些與來源矛盾、數字差異多大
+1. 用正常語言解讀：哪些主張有來源支持、哪些與來源矛盾、數字差異多大
 2. **附上來源連結**：每筆證據的原始 URL、Wikipedia 頁面連結
 3. 告訴圖卡檔案位置（`output/` 資料夾），列出檔名
 4. 用 `open` 指令打開圖卡

@@ -34,8 +34,8 @@ def interactive_mode(theme: str = "slate"):
     print("=" * 60)
     print("\n這個工具會帶你一步步完成事實查核：")
     print("  1️⃣  貼上一段文字（新聞、社群貼文、LINE 轉傳）")
-    print("  2️⃣  AI 拆解出裡面的事實聲明")
-    print("  3️⃣  你來猜：哪些聲明可能有問題？")
+    print("  2️⃣  AI 拆解出裡面的事實主張")
+    print("  3️⃣  你來猜：哪些主張可能有問題？")
     print("  4️⃣  搜尋證據，看看實際情況")
     print("  5️⃣  比對差異：人名、數字、時間線")
     print("  6️⃣  產出圖卡，記錄你的查核結果")
@@ -59,10 +59,10 @@ def interactive_mode(theme: str = "slate"):
     print(f"   關鍵詞：{' '.join(ingest_result['keywords'][:8])}")
 
     # Step 3: Decompose
-    _pause("接下來 AI 會拆解這段文字裡的事實聲明…")
+    _pause("接下來 AI 會拆解這段文字裡的事實主張…")
     print("\n⏳ 拆解中…")
     claims = decompose(text)
-    print(f"\n✅ 找到 {len(claims)} 則可驗證的聲明：\n")
+    print(f"\n✅ 找到 {len(claims)} 則可驗證的主張：\n")
     for i, c in enumerate(claims, 1):
         print(f"  {i}. {c['text']}")
         if c.get("who"):
@@ -74,7 +74,7 @@ def interactive_mode(theme: str = "slate"):
 
     # Step 4: Student guesses
     print("\n" + "─" * 40)
-    print("🤔 在看到證據之前，你覺得哪些聲明可能有問題？")
+    print("🤔 在看到證據之前，你覺得哪些主張可能有問題？")
     print("   （輸入編號，用逗號分隔，例如：1,3）")
     guess = _ask("你的猜測：", "跳過")
     if guess != "跳過":
@@ -96,7 +96,7 @@ def interactive_mode(theme: str = "slate"):
         if found:
             print(f"   Wikipedia 找到：{', '.join(found)}")
 
-    print("\n⏳ 搜尋每則聲明的證據…")
+    print("\n⏳ 搜尋每則主張的證據…")
     claims = retrieve(claims)
     for i, c in enumerate(claims, 1):
         n = len(c.get("evidence", []))
@@ -105,7 +105,7 @@ def interactive_mode(theme: str = "slate"):
             print(f"      📎 {e['title'][:50]}")
 
     # Step 5: Diff
-    _pause("接下來比對聲明和證據的差異…")
+    _pause("接下來比對主張和證據的差異…")
     print("\n⏳ 比對 NER / 數字 / 時間線…")
     claims = diff(claims)
 
@@ -116,13 +116,13 @@ def interactive_mode(theme: str = "slate"):
         d = c.get("diff", {})
         verdict = d.get("verdict", "?")
         icon = {"match": "✅", "mismatch": "❌", "insufficient": "❓"}.get(verdict, "❓")
-        print(f"\n{icon} 聲明 {i}：{c['text'][:50]}")
+        print(f"\n{icon} 主張 {i}：{c['text'][:50]}")
         for item in d.get("ner", []):
-            print(f"   🏷️  NER 不一致：聲明說「{item['claim_says']}」，證據說「{item['evidence_says']}」")
+            print(f"   🏷️  NER 不一致：主張說「{item['claim_says']}」，證據說「{item['evidence_says']}」")
         for item in d.get("numbers", []):
-            print(f"   🔢 數字不一致：聲明說「{item['claim_says']}」，證據說「{item['evidence_says']}」")
+            print(f"   🔢 數字不一致：主張說「{item['claim_says']}」，證據說「{item['evidence_says']}」")
         for item in d.get("timeline", []):
-            print(f"   📅 時間不一致：聲明說「{item['claim_says']}」，證據說「{item['evidence_says']}」")
+            print(f"   📅 時間不一致：主張說「{item['claim_says']}」，證據說「{item['evidence_says']}」")
         if not d.get("ner") and not d.get("numbers") and not d.get("timeline"):
             if verdict == "match":
                 print("   ✓ 與證據吻合")

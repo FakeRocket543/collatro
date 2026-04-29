@@ -59,7 +59,7 @@ def _render_diff_section(items: list[dict], tag: str) -> str:
         html += f'''<div class="flex items-start gap-3">
       <span class="shrink-0 {cls} text-xs font-bold px-2 py-1 rounded">{label}</span>
       <div>
-        <div class="text-sm"><span class="text-red-300">聲明：</span>{item.get("claim_says","")}</div>
+        <div class="text-sm"><span class="text-red-300">主張：</span>{item.get("claim_says","")}</div>
         <div class="text-sm"><span class="text-green-300">證據：</span>{item.get("evidence_says","")}</div>
       </div>
     </div>\n'''
@@ -91,7 +91,7 @@ def _get_summary(diff: dict) -> str:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 橫式 (1080×auto) — 完整版：聲明 + verdict + 差異 + 來源
+# 橫式 (1080×auto) — 完整版：主張 + verdict + 差異 + 來源
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def render_html_wide(claim: dict, theme: str = "slate") -> str:
@@ -123,7 +123,7 @@ def render_html_wide(claim: dict, theme: str = "slate") -> str:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Reels (1080×1920) — 重點版：聲明 + verdict + summary
+# Reels (1080×1920) — 重點版：主張 + verdict + summary
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def render_html_reels(claim: dict, theme: str = "slate", font_scale: float = 1.0) -> str:
@@ -143,7 +143,7 @@ def render_html_reels(claim: dict, theme: str = "slate", font_scale: float = 1.0
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Square (1080×1080) — 精簡版：聲明 + verdict
+# Square (1080×1080) — 精簡版：主張 + verdict
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 def render_html_square(claim: dict, theme: str = "slate", font_scale: float = 1.0) -> str:

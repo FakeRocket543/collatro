@@ -32,7 +32,7 @@ python3 setup.py
 1. **分類器不泛化** — 訓練集長什麼樣就只認什麼樣，換個語氣就繞過
 2. **只給結論不教方法** — 告訴你「這是假的」，但不教你怎麼自己判斷
 
-Collatro 不做分類，不給結論。它做的是：**把「聲明」和「證據」並排放好，讓你自己看差異在哪。**
+Collatro 不做分類，不給結論。它做的是：**把「主張」和「證據」並排放好，讓你自己看差異在哪。**
 
 ---
 
@@ -47,14 +47,14 @@ Wikidata KG 查詢（結構化事實：出生/死亡/職業/國籍/死因）
   ↓
 搜尋引擎比對（Searxng 優先，DuckDuckGo fallback）
   ↓
-Agent 拆解聲明 + 比對差異（NER/數字/時間線）
+Agent 拆解主張 + 比對差異（NER/數字/時間線）
   ↓
 產出：三種圖卡 + Slides HTML 報告 + GitHub Pages 短網址
 ```
 
 ## 圖卡輸出
 
-每則聲明自動生成三種尺寸：
+每則主張自動生成三種尺寸：
 
 | 格式 | 尺寸 | 用途 |
 |------|------|------|
@@ -78,7 +78,7 @@ Agent 拆解聲明 + 比對差異（NER/數字/時間線）
 | 項目 | 用途 | 設定 |
 |------|------|------|
 | Searxng | 更好的搜尋（不限流、繁中優先） | `export COLLATRO_SEARXNG_URL=http://localhost:8888` |
-| 本地 LLM | 離線拆解聲明 | 預設 3B，`export COLLATRO_MLX_MODEL=mlx-community/Ministral-3-8B-Instruct-2512-8bit` 升級 8B |
+| 本地 LLM | 離線拆解主張 | 預設 3B，`export COLLATRO_MLX_MODEL=mlx-community/Ministral-3-8B-Instruct-2512-8bit` 升級 8B |
 
 不裝選配也能用——Agent 自己處理拆解和比對。
 

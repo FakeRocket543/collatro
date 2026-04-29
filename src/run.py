@@ -20,21 +20,21 @@ def run(text: str, theme: str = "slate") -> list:
     t0 = time.time()
 
     # ── 步驟 1+2 並行：NER 與 LLM 同時跑 ──
-    print("1/7 斷詞+NER ‖ LLM拆解聲明（並行）…")
+    print("1/7 斷詞+NER ‖ LLM拆解主張（並行）…")
     with ThreadPoolExecutor(max_workers=2) as pool:
         fut_ingest = pool.submit(ingest, text)
         fut_decompose = pool.submit(decompose, text)
         ingest_result = fut_ingest.result()
         claims = fut_decompose.result()
     print(f"    → NER 後端：{ingest_result['backend']}，關鍵詞：{' '.join(ingest_result['keywords'][:5])}")
-    print(f"    → LLM：{len(claims)} 則聲明")
+    print(f"    → LLM：{len(claims)} 則主張")
 
     # ── 步驟 3：Agent 融合定奪 ──
     print("2/7 Agent 融合（NER + LLM → 最終查詢）…")
     fused = fuse(ingest_result, claims)
     fused_entities = fused.get("entities", [])
     fused_claims = fused.get("claims", [])
-    print(f"    → 實體 {len(fused_entities)} 個，聲明 {len(fused_claims)} 則")
+    print(f"    → 實體 {len(fused_entities)} 個，主張 {len(fused_claims)} 則")
 
     # 用 fused 結果更新 claims 的 keywords
     _patch_claims_with_fused(claims, fused_claims)

@@ -1,7 +1,7 @@
 """highlight — 重點實體提示器：從斷詞+POS提取六類實體，標記並作為查詢關鍵詞。
 
 設計參考 CEUR-WS 2025 (NGU_Research) 的 Claim Rewriting 階段：
-將聲明中的人事時地物數字特別標出，作為 focused query 的基礎。
+將主張中的人事時地物數字特別標出，作為 focused query 的基礎。
 
 六類實體：
   人 (person)  — CKIP: Nb / jieba: nr
@@ -95,7 +95,7 @@ def extract_entities(ws: list[str], pos: list[str]) -> list[dict]:
 def entity_queries(entities: list[dict]) -> list[str]:
     """從實體列表生成查詢用關鍵詞（去重、優先人/機構/地/數字）。
 
-    CEUR-WS 2025 的 Claim Rewriting：把聲明改寫為 focused question。
+    CEUR-WS 2025 的 Claim Rewriting：把主張改寫為 focused question。
     這裡簡化為：提取最重要的實體作為搜尋詞組合。
     """
     # 優先順序：人/機構 > 地 > 數字 > 時間 > 事件

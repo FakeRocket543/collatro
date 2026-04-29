@@ -1,4 +1,4 @@
-"""collatro.fuse — Agent 融合：合併 NER 實體 + LLM 聲明，去重產出最終查詢詞。
+"""collatro.fuse — Agent 融合：合併 NER 實體 + LLM 主張，去重產出最終查詢詞。
 
 流程：
   NER (ingest) 產出 entities + keywords
@@ -16,16 +16,16 @@ FUSE_PROMPT = """你是事實查核融合助手。你收到兩路提取結果：
 【NER 實體】（自動斷詞提取，可能有噪音）
 {ner_entities}
 
-【LLM 聲明】（語言模型提取的可驗證聲明）
+【LLM 主張】（語言模型提取的可驗證主張）
 {llm_claims}
 
 請執行：
 1. 合併兩路的人名、機構、時間、數字、事件，去除重複和噪音（如單字、虛詞）
-2. 為每則聲明補充最佳搜尋關鍵詞（中英文皆可），優先使用專有名詞的英文原名
+2. 為每則主張補充最佳搜尋關鍵詞（中英文皆可），優先使用專有名詞的英文原名
 3. 輸出 JSON：
 {{
   "entities": [{{"text": "...", "type": "person|org|time|number|event|place", "en": "英文名(若有)"}}],
-  "claims": [{{"text": "原文聲明", "search_queries": ["查詢1", "查詢2"]}}]
+  "claims": [{{"text": "原文主張", "search_queries": ["查詢1", "查詢2"]}}]
 }}
 
 只回覆 JSON，不加其他文字。"""
@@ -42,7 +42,7 @@ def fuse(ingest_result: dict, claims: list[dict]) -> dict:
             ner_entities.append(str(e))
     ner_str = "\n".join(ner_entities[:20]) or "（無）"
 
-    # 準備 LLM 聲明摘要
+    # 準備 LLM 主張摘要
     claim_lines = []
     for c in claims:
         parts = [c.get("text", "")]
